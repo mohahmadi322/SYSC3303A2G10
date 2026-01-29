@@ -1,3 +1,2 @@
-Time	Zone ID	Event type	Severity
-15:04:10 PM	1	Fire_Detected	High
-15:14:06 PM	2	Drone_requested	Low
+Time,Zone ID,Event type,Severity
+15:12:15,3,FIRE_DETECTED,Low
