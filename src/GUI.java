@@ -1,2 +1,6 @@
-public class GUI {
+import javax.swing.*;
+import java.awt.*;
+public class GUI extends JPanel{
+
+
 }

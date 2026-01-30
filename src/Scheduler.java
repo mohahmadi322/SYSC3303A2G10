@@ -55,7 +55,6 @@ public class Scheduler implements Runnable{
         for (Drone d : allDrones) {
             d.stop();   // sets running=false + notifyAll
         }
-        System.out.println("Scheduler thread is exiting");
         return;
     }
 }

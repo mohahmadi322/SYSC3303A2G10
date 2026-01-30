@@ -111,7 +111,6 @@ public class Drone implements Runnable{
         running = false;
         notifyAll();
     }
-
     @java.lang.Override
     public void run() {
         scheduler.registerDrone(this);
@@ -123,6 +122,5 @@ public class Drone implements Runnable{
             dropWater();
             scheduler.firePutOut(e);
         }
-        System.out.println("Drone thread is exiting");
     }
 }

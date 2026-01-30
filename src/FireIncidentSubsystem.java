@@ -82,7 +82,7 @@ public class FireIncidentSubsystem implements Runnable {
         };
         return events;
     }
-    public void firePutout(Zone zone){
+    public synchronized void firePutout(Zone zone){
         System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
         zone.fireExtinguished();
     }
