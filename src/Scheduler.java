@@ -27,8 +27,9 @@ public class Scheduler implements Runnable{
                 throw new RuntimeException(e);
             }
         }
+        fireIncidentEvent.getZone().activeFire();
         incidentQueue.add(fireIncidentEvent);
-        System.out.println("Scheduler has receivedd new fire event:\n" + fireIncidentEvent.toString() );
+        System.out.println("Scheduler has received new fire event:\n" + fireIncidentEvent.toString() );
         notifyAll();
     }
     public synchronized void handleEvent(){

@@ -18,9 +18,9 @@ public class FireIncidentEvent {
     private Zone zone;
     private Severity severity;
 
-    public FireIncidentEvent(LocalTime time,Zone zone,Status incident, Severity severity){
+    public FireIncidentEvent(LocalTime time,Zone zone,Status status, Severity severity){
         this.time = time;
-        this.status = incident;
+        this.status = status;
         this.severity = severity;
         this.zone = zone;
     }

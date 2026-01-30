@@ -34,6 +34,7 @@ public class Drone implements Runnable{
     }
     public synchronized void event(FireIncidentEvent e){
         this.currentEvent = e;
+        currentEvent.changeStatus(FireIncidentEvent.Status.DRONE_REQUESTED);
         notifyAll();
     }
 
@@ -91,6 +92,7 @@ public class Drone implements Runnable{
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+        currentEvent.getZone().fireExtinguished();
         status = Status.IDLE;
         FireIncidentEvent event = currentEvent;
         currentEvent = null;

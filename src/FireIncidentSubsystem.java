@@ -24,7 +24,6 @@ public class FireIncidentSubsystem implements Runnable {
         int zoneID = Integer.parseInt(values[1].trim());
         FireIncidentEvent.Status status= FireIncidentEvent.Status.valueOf(values[2]);
         FireIncidentEvent.Severity severity= FireIncidentEvent.Severity.valueOf(values[3]);
-        zones.get(zoneID).activeFire();
         return new FireIncidentEvent(time,zones.get(zoneID),status,severity);
     }
 
