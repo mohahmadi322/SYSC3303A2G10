@@ -7,14 +7,12 @@ public class Drone implements Runnable{
     private static int MAXLOAD = 15;
     private static int STARTING_ZONE_X = 0;
     private static int STARTING_ZONE_Y = 0;
+    private  double DRONE_SPEED = 26.4;
+    private  double TAKE_OFF_TIME = 6;
+    private  double LANDING_TIME = 4;
+    private  double TIME_TO_OPEN_NOZZLE = 0.5;
 
-    private static double DRONE_SPEED = 26.4;
-
-    private static double TAKE_OFF_TIME = 26.4;
-    private static double LANDING_TIME = 26.4;
-
-
-    private static double TIME_TO_OPEN_NOZZLE = 0.5;
+    private volatile boolean running = true;
     public enum Status{
         FLIGHT,
         APPROACHING,
@@ -39,24 +37,43 @@ public class Drone implements Runnable{
         notifyAll();
     }
 
-    public double travelToZone(Zone zone){
-        int startX = zone.getStartX();
+    public double calculateTime(Zone zone){
         int endX = zone.getEndX();
-        int startY = zone.getStartY();
         int endY = zone.getEndY();
-
-        int length = startX - endX;
-        int width = startY - endY;
-
+        int length = endX - STARTING_ZONE_X;
+        int width =  endY - STARTING_ZONE_Y;
         double hypotneus = Math.sqrt(Math.pow(length, 2) + Math.pow(width, 2));
+        double time = DRONE_SPEED / hypotneus;
+        return time;
 
-
-        return hypotneus;
     }
-
-
-    public synchronized FireIncidentEvent dropWater(){
+    public void travelToZone(){
         currentEvent.changeStatus(FireIncidentEvent.Status.DRONE_REQUESTED);
+        System.out.println("Drone is traveling to zone" + currentEvent.getZone().toString());
+        try {
+            Thread.sleep((int)(TAKE_OFF_TIME * 1000));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        status = Status.FLIGHT;
+        System.out.println("Drone status: " + status.toString());
+        try {
+            Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
+            status = Status.APPROACHING;
+            System.out.println("Drone status: " + status.toString());
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        try {
+            Thread.sleep((int)(LANDING_TIME * 1000));
+            System.out.println("Drone has landed");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+
+    }
+    public synchronized FireIncidentEvent dropWater(){
         status = Status.DROPPING_AGENT;
         int waterNeeded = waterRequired(currentEvent);
 
@@ -67,30 +84,45 @@ public class Drone implements Runnable{
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+
+        try {
+            Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
+            System.out.println("Drone is heading back to origin");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
         status = Status.IDLE;
         FireIncidentEvent event = currentEvent;
-        currentEvent.getZone().fireExtinguished();
         currentEvent = null;
+        scheduler.registerDrone(this);
         return event;
     }
     public synchronized void waitForEvent(){
-        while(currentEvent == null){
-            try{
-                System.out.println("Drone has no mission");
+        while (currentEvent == null && running) {
+            try {
                 wait();
-            }catch (InterruptedException exception) {throw new RuntimeException();}
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
-
     }
+    public synchronized void stop(){
+        running = false;
+        notifyAll();
+    }
+
     @java.lang.Override
     public void run() {
         scheduler.registerDrone(this);
-        while(true){
+        while(running){
             waitForEvent();
+            if(!running)return;
             FireIncidentEvent e = currentEvent;
+            travelToZone();
             dropWater();
-            scheduler.registerDrone(this);
             scheduler.firePutOut(e);
         }
+        System.out.println("Drone thread is exiting");
     }
 }

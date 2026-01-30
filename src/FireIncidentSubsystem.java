@@ -1,20 +1,18 @@
-import javax.swing.text.DateFormatter;
 import java.io.*;
-import java.net.*;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 
-public class FireIncident implements Runnable {
-    private static String FILEPATH = "Event_File.csv";
-    FireIncidentEvent incidentEvent;
+public class FireIncidentSubsystem implements Runnable {
+    private static String INCIDENT_FILEPATH = "Event_File.csv";
+
+    private static String ZONE_FILEPATH= "Zone_File.csv";
     Scheduler scheduler;
     ArrayList<FireIncidentEvent> incidents;
     HashMap<Integer, Zone> zones;
 
-    public FireIncident(Scheduler scheduler){
+    public FireIncidentSubsystem(Scheduler scheduler){
         this.scheduler = scheduler;
         incidents = new ArrayList<>();
         zones = new HashMap<>();
@@ -26,6 +24,7 @@ public class FireIncident implements Runnable {
         int zoneID = Integer.parseInt(values[1].trim());
         FireIncidentEvent.Status status= FireIncidentEvent.Status.valueOf(values[2]);
         FireIncidentEvent.Severity severity= FireIncidentEvent.Severity.valueOf(values[3]);
+        zones.get(zoneID).activeFire();
         return new FireIncidentEvent(time,zones.get(zoneID),status,severity);
     }
 
@@ -83,16 +82,16 @@ public class FireIncident implements Runnable {
         };
         return events;
     }
-
+    public void firePutout(Zone zone){
+        System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
+        zone.fireExtinguished();
+    }
     @Override
     public void run() {
-        zones = parseZones("Zone_File.csv");
-
-        incidents = parseIncidentFiles(FILEPATH);
-
+        zones = parseZones(ZONE_FILEPATH);
+        incidents = parseIncidentFiles(INCIDENT_FILEPATH);
         for(FireIncidentEvent e: incidents){
             scheduler.newIncident(e);
-            return;
         }
     }
 }

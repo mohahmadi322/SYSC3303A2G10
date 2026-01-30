@@ -1,12 +1,21 @@
 import java.util.*;
 
 public class Scheduler implements Runnable{
-    private Queue<FireIncidentEvent> incidentQueue = new LinkedList<>();
-    private Queue<Drone> availableDrones = new LinkedList<>();
+    private Queue<FireIncidentEvent> incidentQueue;
+    private Queue<Drone> availableDrones;
 
-
+    private ArrayList<Drone> allDrones;
+    FireIncidentSubsystem fireIncidentSubsystem;
+    private volatile boolean running = true;
+    public Scheduler(){
+        incidentQueue = new LinkedList<>();
+        availableDrones = new LinkedList<>();
+        allDrones = new ArrayList<>();
+        fireIncidentSubsystem = new FireIncidentSubsystem(this);
+    }
     public synchronized void registerDrone(Drone drone){
         availableDrones.add(drone);
+        allDrones.add(drone);
     }
 
     public synchronized void newIncident  (FireIncidentEvent fireIncidentEvent){
@@ -19,31 +28,34 @@ public class Scheduler implements Runnable{
             }
         }
         incidentQueue.add(fireIncidentEvent);
-        System.out.println("New fire " + fireIncidentEvent.toString() );
+        System.out.println("Scheduler has receivedd new fire event:\n" + fireIncidentEvent.toString() );
         notifyAll();
     }
-
     public synchronized void handleEvent(){
-        while(incidentQueue.isEmpty() || availableDrones.isEmpty()){
+        while((incidentQueue.isEmpty() || availableDrones.isEmpty()) && running){
             try{
                 wait();
             }catch (InterruptedException e) {throw new RuntimeException();}
         }
+        if(!running)return;
         FireIncidentEvent e = incidentQueue.poll();
         Drone drone = availableDrones.poll();
-
         drone.event(e);
     }
-
     public synchronized void firePutOut(FireIncidentEvent e){
-        System.out.println("Fire is put out " + e.toString());
+        fireIncidentSubsystem.firePutout(e.getZone());
         notifyAll();
     }
     @Override
     public void run() {
-        while(true){
+        while(running){
             handleEvent();
-            if(incidentQueue.isEmpty())return;
+            if(incidentQueue.isEmpty()){running = false;}
         }
+        for (Drone d : allDrones) {
+            d.stop();   // sets running=false + notifyAll
+        }
+        System.out.println("Scheduler thread is exiting");
+        return;
     }
 }
