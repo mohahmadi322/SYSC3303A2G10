@@ -1,9 +1,11 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.awt.*;
 
-public class Drone implements Runnable{
+public class Drone implements Runnable {
     private Scheduler scheduler;
     private FireIncidentEvent currentEvent;
+    private GUI gui;
+    private static int counter = 1;
+    private int id; // Unique drone ID
     private static int MAXLOAD = 15;
     private static int STARTING_ZONE_X = 0;
     private static int STARTING_ZONE_Y = 0;
@@ -19,26 +21,30 @@ public class Drone implements Runnable{
         DROPPING_AGENT,
         IDLE
     }
+
     private Status status;
-    public Drone (Scheduler s){
+    public Drone(Scheduler s, GUI gui) {
         scheduler = s;
+        this.gui = gui;
         status = Status.IDLE;
+        this.id = counter++;
     }
-    public int waterRequired(FireIncidentEvent e){
-        return switch(e.getSeverity()){
+    //Determines how much water is needed based on fire severity.
+    public int waterRequired(FireIncidentEvent e) {
+        return switch (e.getSeverity()) {
             case Low -> 10;
             case Moderate -> 20;
             case High -> 30;
         };
-
     }
-    public synchronized void event(FireIncidentEvent e){
+
+    public synchronized void event(FireIncidentEvent e) {
         this.currentEvent = e;
         currentEvent.changeStatus(FireIncidentEvent.Status.DRONE_REQUESTED);
         notifyAll();
     }
 
-    public double calculateTime(Zone zone){
+    public double calculateTime(Zone zone) {
         int endX = zone.getEndX();
         int endY = zone.getEndY();
         int length = endX - STARTING_ZONE_X;
@@ -50,14 +56,14 @@ public class Drone implements Runnable{
     }
     public void travelToZone(){
         currentEvent.changeStatus(FireIncidentEvent.Status.DRONE_REQUESTED);
-        System.out.println("Drone is traveling to zone" + currentEvent.getZone().toString());
+        gui.log("Drone is traveling to zone " + currentEvent.getZone());
         try {
             Thread.sleep((int)(TAKE_OFF_TIME * 1000));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
         status = Status.FLIGHT;
-        System.out.println("Drone status: " + status.toString());
+        gui.log("Drone status: " + status);
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
             status = Status.APPROACHING;
@@ -66,32 +72,47 @@ public class Drone implements Runnable{
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+
         try {
             Thread.sleep((int)(LANDING_TIME * 1000));
-            System.out.println("Drone has landed");
+            gui.log("Drone has landed");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-
     }
-    public synchronized FireIncidentEvent dropWater(){
+
+    public synchronized FireIncidentEvent dropWater() {
+        int zoneId = currentEvent.getZone().getId();
+        //GUI UPDATE: Drone is extinguishing fire (dark green square)
+        gui.updateOrReplaceSquare(zoneId, "D" + id, new Color(0, 128, 0));
+
         status = Status.DROPPING_AGENT;
         int waterNeeded = waterRequired(currentEvent);
 
         double timeLoad = ((MAXLOAD / 10.0) + TIME_TO_OPEN_NOZZLE);
         try {
             Thread.sleep((int)(timeLoad * 1000));
-            System.out.println("Drone: Dropped " + waterNeeded + "L at zone " + currentEvent.getZone());
+            gui.log("Drone: Dropped " + waterNeeded + "L at zone " + currentEvent.getZone());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
 
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
-            System.out.println("Drone is heading back to origin");
+            gui.log("Drone is heading back to origin");
+            // GUI UPDATE: Drone returning (purple square)
+            gui.updateOrReplaceSquare(zoneId, "D" + id, new Color(128, 0, 128));
+
+            try { Thread.sleep(900);
+            } catch (InterruptedException ignored) {}
+
+            // GUI UPDATE: Remove drone square completely
+            gui.updateOrReplaceSquare(zoneId, "D" + id, null); // null color = remove
+
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+
         currentEvent.getZone().fireExtinguished();
         status = Status.IDLE;
         FireIncidentEvent event = currentEvent;
@@ -99,7 +120,8 @@ public class Drone implements Runnable{
         scheduler.registerDrone(this);
         return event;
     }
-    public synchronized void waitForEvent(){
+
+    public synchronized void waitForEvent() {
         while (currentEvent == null && running) {
             try {
                 wait();
@@ -109,20 +131,22 @@ public class Drone implements Runnable{
             }
         }
     }
-    public synchronized void stop(){
+
+    public synchronized void stop() {
         running = false;
         notifyAll();
     }
-    @java.lang.Override
+
+    @Override
     public void run() {
         scheduler.registerDrone(this);
-        while(running){
+        while (running) {
             waitForEvent();
-            if(!running)return;
+            if (!running) return;
             FireIncidentEvent e = currentEvent;
             travelToZone();
             dropWater();
-            scheduler.firePutOut(e);
+            scheduler.firePutOut(e, this);
         }
     }
 }
