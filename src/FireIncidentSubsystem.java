@@ -8,12 +8,14 @@ public class FireIncidentSubsystem implements Runnable {
     private static String INCIDENT_FILEPATH = "Event_File.csv";
 
     private static String ZONE_FILEPATH= "Zone_File.csv";
+    private GUI gui;
     Scheduler scheduler;
     ArrayList<FireIncidentEvent> incidents;
     HashMap<Integer, Zone> zones;
 
-    public FireIncidentSubsystem(Scheduler scheduler){
+    public FireIncidentSubsystem(Scheduler scheduler,  GUI gui) {
         this.scheduler = scheduler;
+        this.gui = gui;
         incidents = new ArrayList<>();
         zones = new HashMap<>();
 
@@ -83,6 +85,7 @@ public class FireIncidentSubsystem implements Runnable {
     }
     public synchronized void firePutout(Zone zone){
         System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
+        gui.log("Fire subsystem: Fire is put out at zone " + zone);
         zone.fireExtinguished();
     }
     @Override
