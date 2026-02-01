@@ -1,14 +1,27 @@
 import java.awt.*;
 import java.util.*;
-
+/**
+ *The scheduler class. The channel for communication between the drone and the fire incident subsystem.
+ *
+ * Takes in incidents from the fire incident subsystem and assigns it to a drone.
+ *
+ * Implements Runnable interface.
+ *
+ * @author Mohammad Ahmadi
+ * @date 2026-01-31
+ */
 public class Scheduler implements Runnable{
-    private Queue<FireIncidentEvent> incidentQueue;
-    private Queue<Drone> availableDrones;
+    private Queue<FireIncidentEvent> incidentQueue;//Queue of fires that need to be put out.
+    private Queue<Drone> availableDrones;//Queue of available drones.
+    private ArrayList<Drone> allDrones;//Array of all the drones.
+    FireIncidentSubsystem fireIncidentSubsystem;//The fire incident subsystem.
+    private volatile boolean running = true;//Flag to check system is running.
     private GUI gui;
 
-    private ArrayList<Drone> allDrones;
-    FireIncidentSubsystem fireIncidentSubsystem;
-    private volatile boolean running = true;
+    /**
+     * Constructor methods for Scheduler class. Initialized the queues and array.
+     * @param gui an instance of the GUI class.
+     */
     public Scheduler(GUI gui){
         this.gui = gui;
         incidentQueue = new LinkedList<>();
@@ -16,13 +29,20 @@ public class Scheduler implements Runnable{
         allDrones = new ArrayList<>();
         fireIncidentSubsystem = new FireIncidentSubsystem(this, gui);
     }
+    /**
+     * Register a drone.
+     * @param drone The drone that to be registered.
+     */
     public synchronized void registerDrone(Drone drone){
         availableDrones.add(drone);
         allDrones.add(drone);
     }
-
+    /**
+     * Register a new fire from the Fire Incident subsystem.
+     * @param fireIncidentEvent The fire that is happening.
+     */
     public synchronized void newIncident  (FireIncidentEvent fireIncidentEvent){
-        if(fireIncidentEvent == null){
+        if(fireIncidentEvent == null){//This ensures that a null event is not added.
             try{
                 System.out.println("No new fires at the moment");
                 gui.log("No new fires at the moment");
@@ -41,17 +61,28 @@ public class Scheduler implements Runnable{
                 GUI.severityLetter(fireIncidentEvent.getSeverity()), Color.RED);
         notifyAll();
     }
+
+    /**
+     * Handles an event by assigning it to a drone to handle.
+     */
     public synchronized void handleEvent(){
+        //If program is not running, and  either one of the drone or incident queue is empty, then thread waits.
         while((incidentQueue.isEmpty() || availableDrones.isEmpty()) && running){
             try{
                 wait();
             }catch (InterruptedException e) {throw new RuntimeException();}
         }
         if(!running)return;
-        FireIncidentEvent e = incidentQueue.poll();
+        FireIncidentEvent e = incidentQueue.poll();//Get head of queue.
         Drone drone = availableDrones.poll();
         drone.event(e);
     }
+
+    /**
+     * Fire has been put out. Notify GUI and FireIncidentSubsystem. Drone is added back to available drone queue.
+     * @param e The fire that has been extinguished.
+     * @param drone The drone that is to be readded to the drone queue.
+     */
     public synchronized void firePutOut(FireIncidentEvent e, Drone drone){
         // Extract the zone ID where the fire was extinguished
         int zoneId = e.getZone().getId();
@@ -63,6 +94,10 @@ public class Scheduler implements Runnable{
         availableDrones.add(drone);
         notifyAll();
     }
+
+    /**
+     * While program is running handle events. Once program is no longer running call the drones to stop.
+     */
     @Override
     public void run() {
         while(running) {
