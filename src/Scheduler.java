@@ -102,6 +102,7 @@ public class Scheduler implements Runnable{
     public void run() {
         while(running) {
             handleEvent();
+            if(incidentQueue.isEmpty()){running = false;}
         }
         for (Drone d : allDrones) {
             d.stop();   // sets running=false + notifyAll

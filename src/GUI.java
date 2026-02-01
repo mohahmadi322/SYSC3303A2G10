@@ -53,8 +53,9 @@ public class GUI extends JFrame {
         squares.removeIf(sq -> sq.getText().equals(label));
 
         // Add new square if color is provided
+        int middle = squares.size()/2;
         if (color != null) {
-            squares.add(createSquare(label, color));
+            squares.add(middle, createSquare(label, color));
         }
 
         updateZone(zoneId);
