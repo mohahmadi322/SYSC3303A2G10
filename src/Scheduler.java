@@ -37,7 +37,8 @@ public class Scheduler implements Runnable{
         gui.log("Scheduler has received new fire event:\n" + fireIncidentEvent);
         // Display the fire on the zone map by placing a red severity square (H/M/L).
         // updateOrReplaceSquare ensures the zone shows ONLY the current fire state
-        gui.updateOrReplaceSquare(fireIncidentEvent.getZone().getId(), GUI.severityLetter(fireIncidentEvent.getSeverity()), Color.RED);
+        gui.updateOrReplaceSquare(fireIncidentEvent.getZone().getId(),
+                GUI.severityLetter(fireIncidentEvent.getSeverity()), Color.RED);
         notifyAll();
     }
     public synchronized void handleEvent(){

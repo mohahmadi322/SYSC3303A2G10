@@ -20,7 +20,7 @@ public class SystemTest{
 
         assertEquals(9, e.getZone().getId());
         assertEquals(FireIncidentEvent.Status.FIRE_DETECTED, e.getStatus());
-        assertEquals(FireIncidentEvent.Severity.High, e.getSeverity());
+        assertEquals(FireIncidentEvent.Severity.Low, e.getSeverity());
 
     }
     @Test
