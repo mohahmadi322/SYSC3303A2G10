@@ -131,6 +131,7 @@ public class FireIncidentSubsystem implements Runnable {
         System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
         gui.log("Fire subsystem: Fire is put out at zone " + zone.toString());
         zone.fireExtinguished();
+        notifyAll();
     }
 
     /**

@@ -55,7 +55,7 @@ public class SchedulerTest {
 
         scheduler.newIncident(event);
 
-        assertTrue(true);
+        assertTrue(scheduler.getStatus() == Scheduler.Status.FIRE_DETECTED);
     }
 
     @Test
