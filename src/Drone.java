@@ -1,3 +1,4 @@
+import java.awt.*;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -14,6 +15,10 @@ import java.util.Queue;
 public class Drone implements Runnable{
     private Scheduler scheduler; //Instane of scheduler to be used for communication with fire incident subsystem.
     private FireIncidentEvent currentEvent; // The current event assigned to the drone.
+
+    private GUI gui;
+    private int droneId;
+
     private static int MAXLOAD = 15; // The max load drone can hold. Value is from iteration 0.
     private static int STARTING_ZONE_X = 0; //X coordinate of the starting point of the drone.
     private static int STARTING_ZONE_Y = 0;//Y coordinate of the starting point of the drone.
@@ -22,6 +27,7 @@ public class Drone implements Runnable{
     private  double LANDING_TIME = 4;//Landing time of the drone. Value is from iteration 0.
     private  double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
     private volatile boolean running = true;//To check if drone is running or not.
+
     public enum Status{//The statuses of the drone.
         FLIGHT,
         APPROACHING,
@@ -34,9 +40,11 @@ public class Drone implements Runnable{
      * Constructor for drone. Sets the status of the drone to idle.
      * @param s Scheduler the drone will use for communication and to be assigned tasks.
      */
-    public Drone (Scheduler s, GUI gui){
+    public Drone (Scheduler s, GUI gui, int id){
         scheduler = s;
         status = Status.IDLE;
+        this.gui = gui;
+        droneId = id;
     }
 
     /**
@@ -88,18 +96,26 @@ public class Drone implements Runnable{
      * accordingly.
      */
     public void travelToZone(){
+        int zoneId = currentEvent.getZone().getId();
         currentEvent.changeStatus(FireIncidentEvent.Status.DRONE_REQUESTED);
-        System.out.println("Drone is traveling to zone" + currentEvent.getZone().toString());
+        String msg = "Drone " + droneId + " is traveling to zone " + currentEvent.getZone();
+        System.out.println(msg);
+        gui.log(msg);
         try {
             Thread.sleep((int)(TAKE_OFF_TIME * 1000));
+            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", Color.YELLOW);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
         status = Status.FLIGHT;
+
         System.out.println("Drone status: " + status.toString());
+        gui.log("Drone status: " + status.toString());
+
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
             status = Status.APPROACHING;
+            gui.log("Drone " + droneId + " approaching zone " + zoneId);
             System.out.println("Drone status: " + status.toString());
 
         } catch (InterruptedException ex) {
@@ -108,6 +124,7 @@ public class Drone implements Runnable{
         try {
             Thread.sleep((int)(LANDING_TIME * 1000));
             System.out.println("Drone has landed");
+            gui.log("Drone landed");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
@@ -121,6 +138,7 @@ public class Drone implements Runnable{
     public synchronized FireIncidentEvent dropWater(){
         status = Status.DROPPING_AGENT;
         int waterNeeded = waterRequired(currentEvent);
+        int zoneId = currentEvent.getZone().getId();
         /**
          * This uses the formula that was used in iteration 0.
          * The 10 comes from the previous iteration where it was the estimated duration of flow.
@@ -129,17 +147,27 @@ public class Drone implements Runnable{
         double timeLoad = ((MAXLOAD / 10.0) + TIME_TO_OPEN_NOZZLE);
         try {
             Thread.sleep((int)(timeLoad * 1000));
-            System.out.println("Drone: Dropped " + waterNeeded + "L at zone " + currentEvent.getZone());
+
+            String msg = "Drone " + droneId + " dropped " + waterNeeded + "L at zone " + currentEvent.getZone();
+            System.out.println(msg);
+            gui.log(msg);
+            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(0,128,0));
+            Thread.sleep(500);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
 
         try {
+            // Drone returning (purple)
+            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(128,0,128));
+            Thread.sleep(500);
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
             System.out.println("Drone is heading back to origin");
+            gui.log("Drone heading back to origin");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+        gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", null);
         currentEvent.getZone().fireExtinguished();//Change the status of the zone.
         status = Status.IDLE;
         FireIncidentEvent event = currentEvent;

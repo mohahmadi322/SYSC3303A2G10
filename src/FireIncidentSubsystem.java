@@ -18,10 +18,10 @@ import java.util.*;
  */
 public class FireIncidentSubsystem implements Runnable {
 
-
     Scheduler scheduler;//instance of scheduler class used for communication with drones.
     ArrayList<FireIncidentEvent> incidents;//array of Fire incident events. The objects come from the csv file.
     HashMap<Integer, Zone> zones;//Hashmap of zones. The objects come from the csv file. The integer specifies the zone number and zone is the object.
+    private GUI gui;
 
     /**
      * Constructor for FireIncidentSubsystem class.
@@ -29,9 +29,9 @@ public class FireIncidentSubsystem implements Runnable {
      */
     public FireIncidentSubsystem(Scheduler scheduler, GUI gui){
         this.scheduler = scheduler;
+        this.gui = gui;
         incidents = new ArrayList<>();
         zones = new HashMap<>();
-
     }
 
     /**
@@ -129,6 +129,7 @@ public class FireIncidentSubsystem implements Runnable {
      */
     public synchronized void firePutout(Zone zone){
         System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
+        gui.log("Fire subsystem: Fire is put out at zone " + zone.toString());
         zone.fireExtinguished();
     }
 

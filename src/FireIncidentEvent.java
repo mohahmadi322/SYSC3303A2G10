@@ -1,4 +1,4 @@
-import java.text.DateFormat;
+
 import java.time.LocalTime;
 
 /**
@@ -25,7 +25,7 @@ public class FireIncidentEvent {
     private Severity severity;
 
     /**
-     * Constructor of the class. Takes in the inputs from a Event csv file.
+     * Constructor of the class. Takes in the inputs from an Event csv file.
      * @param time Time of event.
      * @param zone Zone fire is located.
      * @param status Status of the event.

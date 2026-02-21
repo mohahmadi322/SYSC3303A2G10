@@ -23,7 +23,7 @@ class DroneTest {
     void testWaterRequiredLow() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         Zone zone = new Zone(0, 0, 0, 1, 1);
         FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Low);
@@ -35,7 +35,7 @@ class DroneTest {
     void testWaterRequiredModerate() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         Zone zone = new Zone(1, 0, 0, 1, 1);
         FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Moderate);
@@ -47,7 +47,7 @@ class DroneTest {
     void testWaterRequiredHigh() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         Zone zone = new Zone(2, 0, 0, 1, 1);
         FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.High);
@@ -59,7 +59,7 @@ class DroneTest {
     void testCalculateTime() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         Zone zone = new Zone(3, 0, 0, 3, 4); // distance = 5 units (3-4-5 triangle)
         double time = drone.calculateTime(zone);
@@ -71,7 +71,7 @@ class DroneTest {
     void testEventAssignment() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         Zone zone = new Zone(4, 0, 0, 1, 1);
         FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Low);
@@ -85,7 +85,7 @@ class DroneTest {
     void testStop() {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         drone.stop();
 
@@ -97,7 +97,7 @@ class DroneTest {
     void testWaitForEventWithStop() throws InterruptedException {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui);
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
 
         // run waitForEvent in a separate thread
         Thread t = new Thread(() -> drone.waitForEvent());
