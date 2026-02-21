@@ -6,7 +6,11 @@ import java.util.List;
 
 /**
  * GUI class for visualizing firefighting drone swarm simulation.
- * Displays zone map, drone/fire status, legend, and system logs.
+ * Responsibilities:
+ *  - Display the 3x3 zone map
+ *  - Show fire severity (H/M/L) and drone states (outbound/extinguishing/returning)
+ *  - Maintain a legend for color meanings
+ *  - Log system messages from all subsystems
  */
 public class GUI extends JFrame {
 
@@ -20,9 +24,10 @@ public class GUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        add(createMapPanel(), BorderLayout.CENTER);
-        add(createLegendPanel(), BorderLayout.EAST);
-        add(createLogPanel(), BorderLayout.SOUTH);
+        // Main GUI sections
+        add(createMapPanel(), BorderLayout.CENTER); // 3x3 zone grid
+        add(createLegendPanel(), BorderLayout.EAST); // Color legend
+        add(createLogPanel(), BorderLayout.SOUTH); // System logs
 
         // Initialize square lists for each zone
         for (int i = 1; i <= 9; i++) {
@@ -31,7 +36,10 @@ public class GUI extends JFrame {
         setVisible(true);
     }
 
-    // Creates a labeled square with specified color
+    /**
+      * Creates a colored square with a label (e.g., "H", "D(1)").
+     * Used for fire severity and drone states.
+     */
     private JLabel createSquare(String text, Color color) {
         JLabel label = new JLabel(text, SwingConstants.CENTER);
         label.setOpaque(true);
@@ -43,7 +51,12 @@ public class GUI extends JFrame {
         return label;
     }
 
-    // Replaces or removes a square in a zone
+    /**
+     * Adds or replaces a square in the specified zone.
+     * - If color == null → remove the square
+     * - If color != null → add/update the square
+     *
+     */
     public void updateOrReplaceSquare(int zoneId, String label, Color color) {
         List<JLabel> squares = zoneSquares.get(zoneId);
         if (squares == null) return;
@@ -61,6 +74,7 @@ public class GUI extends JFrame {
     }
 
     // Refreshes the visual panel for a zone
+    //Uses SwingUtilities.invokeLater to ensure thread-safe GUI updates.
     private void updateZone(int zoneId) {
         SwingUtilities.invokeLater(() -> {
             JPanel cell = zoneCells.get(zoneId);
@@ -86,10 +100,12 @@ public class GUI extends JFrame {
             cell.setBorder(BorderFactory.createLineBorder(Color.BLACK));
             cell.setBackground(Color.WHITE);
 
+            // Zone label at the top
             JLabel zoneLabel = new JLabel("Z(" + i + ")", SwingConstants.CENTER);
             zoneLabel.setFont(new Font("Arial", Font.BOLD, 16));
             cell.add(zoneLabel, BorderLayout.NORTH);
 
+            // Panel that holds fire/drone squares
             JPanel squarePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 3));
             squarePanel.setOpaque(false);
             cell.add(squarePanel, BorderLayout.CENTER);
