@@ -11,7 +11,7 @@ public class Main {
 
         Thread schedulerThread = new Thread(scheduler);
         Thread fireIncident = new Thread(new FireIncidentSubsystem(scheduler, gui));
-        Thread droneThread = new Thread(new Drone(scheduler, gui));
+        Thread droneThread = new Thread(new Drone(scheduler, gui, 1));
         droneThread.start();
         fireIncident.start();
         schedulerThread.start();

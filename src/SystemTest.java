@@ -42,7 +42,7 @@ public class SystemTest{
 
         FireIncidentSubsystem fireIncidentSubsystem = new FireIncidentSubsystem(scheduler, gui);
 
-        Drone drone = new Drone(scheduler, gui);
+        Drone drone = new Drone(scheduler, gui, 1);
         scheduler.registerDrone(drone);
 
 

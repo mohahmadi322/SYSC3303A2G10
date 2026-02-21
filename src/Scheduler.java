@@ -83,6 +83,7 @@ public class Scheduler implements Runnable{
         if(!running)return;
         FireIncidentEvent e = incidentQueue.poll();//Get head of queue.
         Drone drone = availableDrones.poll();
+
         drone.event(e);
         status = Status.DRONE_REQUESTED;
     }

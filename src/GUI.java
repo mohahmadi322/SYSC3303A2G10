@@ -16,11 +16,10 @@ public class GUI extends JFrame {
 
     public GUI() {
         setTitle("Firefighting Drone Swarm");
-        setSize(1500, 800);
+        setSize(800, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        add(createControlPanel(), BorderLayout.NORTH);
         add(createMapPanel(), BorderLayout.CENTER);
         add(createLegendPanel(), BorderLayout.EAST);
         add(createLogPanel(), BorderLayout.SOUTH);
@@ -75,14 +74,6 @@ public class GUI extends JFrame {
             squarePanel.revalidate();
             squarePanel.repaint();
         });
-    }
-
-    // Control panel with simulation buttons
-    private JPanel createControlPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JButton("Load Incident File"));
-        panel.add(new JButton("Start Simulation"));
-        return panel;
     }
 
     // Creates the zone map grid with labeled cells

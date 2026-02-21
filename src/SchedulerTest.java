@@ -29,7 +29,7 @@ public class SchedulerTest {
         FireIncidentEvent receivedEvent;
 
         public TestDrone(Scheduler scheduler, GUI gui) {
-            super(scheduler, gui);
+            super(scheduler, gui, 1);
         }
 
         @Override
