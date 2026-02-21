@@ -18,6 +18,13 @@ public class Scheduler implements Runnable{
     private volatile boolean running = true;//Flag to check system is running.
     private GUI gui;
 
+    public enum Status{//The statuses of the drone.
+        FIRE_DETECTED,
+        DRONE_REQUESTED,
+    }
+
+    private Scheduler.Status status;// The current status of the scheduler.
+
     /**
      * Constructor methods for Scheduler class. Initialized the queues and array.
      * @param gui an instance of the GUI class.
@@ -54,6 +61,7 @@ public class Scheduler implements Runnable{
         fireIncidentEvent.getZone().activeFire();
         incidentQueue.add(fireIncidentEvent);
         System.out.println("Scheduler has received new fire event:\n" + fireIncidentEvent.toString() );
+        status = Status.FIRE_DETECTED;
         gui.log("Scheduler has received new fire event:\n" + fireIncidentEvent);
         // Display the fire on the zone map by placing a red severity square (H/M/L).
         // updateOrReplaceSquare ensures the zone shows ONLY the current fire state
@@ -76,6 +84,7 @@ public class Scheduler implements Runnable{
         FireIncidentEvent e = incidentQueue.poll();//Get head of queue.
         Drone drone = availableDrones.poll();
         drone.event(e);
+        status = Status.DRONE_REQUESTED;
     }
 
     /**
