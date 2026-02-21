@@ -22,10 +22,10 @@ public class Drone implements Runnable{
     private static int MAXLOAD = 15; // The max load drone can hold. Value is from iteration 0.
     private static int STARTING_ZONE_X = 0; //X coordinate of the starting point of the drone.
     private static int STARTING_ZONE_Y = 0;//Y coordinate of the starting point of the drone.
-    private  double DRONE_SPEED = 26.4;// Speed of the drone in km/h. Value is from iteration 0.
-    private  double TAKE_OFF_TIME = 6;// Take off time of the drone. Value is from iteration 0.
-    private  double LANDING_TIME = 4;//Landing time of the drone. Value is from iteration 0.
-    private  double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
+    private  static double DRONE_SPEED = 26.4;// Speed of the drone in km/h. Value is from iteration 0.
+    private  static double TAKE_OFF_TIME = 6;// Take off time of the drone. Value is from iteration 0.
+    private static double LANDING_TIME = 4;//Landing time of the drone. Value is from iteration 0.
+    private static double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
     private volatile boolean running = true;//To check if drone is running or not.
 
     public enum Status{//The statuses of the drone.

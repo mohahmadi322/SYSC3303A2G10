@@ -18,9 +18,9 @@ import java.util.*;
  */
 public class FireIncidentSubsystem implements Runnable {
 
-    Scheduler scheduler;//instance of scheduler class used for communication with drones.
-    ArrayList<FireIncidentEvent> incidents;//array of Fire incident events. The objects come from the csv file.
-    HashMap<Integer, Zone> zones;//Hashmap of zones. The objects come from the csv file. The integer specifies the zone number and zone is the object.
+    private Scheduler scheduler;//instance of scheduler class used for communication with drones.
+    private ArrayList<FireIncidentEvent> incidents;//array of Fire incident events. The objects come from the csv file.
+    public HashMap<Integer, Zone> zones;//Hashmap of zones. The objects come from the csv file. The integer specifies the zone number and zone is the object.
     private GUI gui;
 
     /**
