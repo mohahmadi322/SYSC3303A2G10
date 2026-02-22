@@ -62,7 +62,7 @@ public class SystemTest{
         //Check that status of event is updated
         //
         // .
-        assertEquals(FireIncidentEvent.Status.DRONE_REQUESTED, e.getStatus());
+        assertEquals(FireIncidentEvent.Status.FIRE_DETECTED, e.getStatus());
         assertEquals(e.getZone().isFireActive(), false);
 
 

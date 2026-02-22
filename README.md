@@ -88,6 +88,18 @@ JUnit tests validating:
 • Scheduler–Drone communication
 • Fire extinguishing logic
 
+SchedulerTest.java
+---------------
+JUnit tests validating the Scheduler class
+
+FireIncidentSubsystemTest.java
+---------------
+JUnit tests validating the FireIncidentSubsystem class
+
+DroneTest.java
+---------------
+JUnit tests validating the Drone class
+
 
 ------------------------------------------------------------
 2. Setup Instructions
