@@ -1,0 +1,40 @@
+Mohammad Ahmadi 101267874:
+
+Scheduler.java
+FireIncidentSubsystem.java
+Zone.java
+Drone.java
+FireIncident.java
+Main.java
+SystemTest.java
+
+Zeina Mouhtadi 1011696385:
+
+GUI.java 
+README
+
+Leena Ford 101229281:
+
+README
+UMLs
+
+
+Iteration 2:
+
+Mohammad Ahmadi 101267874:
+
+UML diagrams
+State Machine Diagram
+README
+
+Zeina Mouhtadi 1011696385:
+
+GUI
+Logic fixes in code
+README
+
+Leena Ford 101229281:
+
+Test Classes
+Logic fixes in code
+README
