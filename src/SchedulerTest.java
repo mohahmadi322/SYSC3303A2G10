@@ -78,7 +78,7 @@ public class SchedulerTest {
         scheduler.registerDrone(drone);
         scheduler.newIncident(event);
 
-        scheduler.handleEvent();
+        scheduler.handleEvent(Scheduler.Event.NEW_FIRE);
 
         assertNotNull(drone.receivedEvent);
         assertEquals(event, drone.receivedEvent);

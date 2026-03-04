@@ -25,6 +25,14 @@ public class Scheduler implements Runnable{
         WAIT,
     }
 
+    public enum Event{
+        NEW_FIRE,
+        DRONE_AVAILABLE,
+        DRONE_DISPATCHED,
+        FIRE_EXTINGUISHED,
+        STOP
+    }
+
     private Scheduler.Status status;// The current status of the scheduler.
 
     /**
@@ -64,7 +72,6 @@ public class Scheduler implements Runnable{
         }
         fireIncidentEvent.getZone().activeFire();
         incidentQueue.add(fireIncidentEvent);
-        transitionState(Status.FIRE_DETECTED);
         System.out.println("Scheduler has received new fire event:\n" + fireIncidentEvent.toString() );
 
         gui.log("Scheduler has received new fire event:\n" + fireIncidentEvent);
@@ -72,13 +79,14 @@ public class Scheduler implements Runnable{
         // updateOrReplaceSquare ensures the zone shows ONLY the current fire state
         gui.updateOrReplaceSquare(fireIncidentEvent.getZone().getId(),
                 GUI.severityLetter(fireIncidentEvent.getSeverity()), Color.RED);
+        handleEvent(Event.NEW_FIRE);
         notifyAll();
     }
 
     /**
      * Handles an event by assigning it to a drone to handle.
      */
-    public synchronized void handleEvent(){
+    public synchronized void assignDrone(){
         //If program is not running, and  either one of the drone or incident queue is empty, then thread waits.
         while((incidentQueue.isEmpty() || availableDrones.isEmpty()) && running){
             try{
@@ -90,7 +98,7 @@ public class Scheduler implements Runnable{
         Drone drone = availableDrones.poll();
 
         drone.event(e);
-        transitionState(Status.DRONE_REQUESTED);
+        handleEvent(Event.DRONE_DISPATCHED);
         notifyAll();
 
     }
@@ -109,7 +117,7 @@ public class Scheduler implements Runnable{
         //ADD a green square to show the fire is extinguished
         gui.updateOrReplaceSquare(zoneId, " ", Color.GREEN);
         availableDrones.add(drone);
-        status = Status.IDLE;
+        handleEvent(Event.FIRE_EXTINGUISHED);
         notifyAll();
 
     }
@@ -119,6 +127,40 @@ public class Scheduler implements Runnable{
      * @return Status
      */
     public Status getStatus(){return status;}
+
+    public void handleEvent (Event e){
+
+        switch(status){
+            case IDLE:
+                if(e == Event.NEW_FIRE){
+                    transitionState(Status.FIRE_DETECTED);
+                    handleEvent(Event.DRONE_AVAILABLE);
+                }
+                break;
+
+            case FIRE_DETECTED:
+                if(e == Event.DRONE_AVAILABLE){
+                    if(!availableDrones.isEmpty()){
+                        assignDrone();
+                    }
+                }
+                break;
+
+            case DRONE_REQUESTED:
+                if(e == Event.DRONE_DISPATCHED){
+                    transitionState(Status.WAIT);
+                }
+                break;
+
+            case WAIT:
+                if(e == Event.FIRE_EXTINGUISHED){
+                    transitionState(Status.IDLE);
+                }
+                break;
+        }
+
+
+    }
 
     /**
      * Transitions between the states of the scheduler.
@@ -155,15 +197,21 @@ public class Scheduler implements Runnable{
      */
     @Override
     public void run() {
-        while(running) {
-            handleEvent();
-            if(incidentQueue.isEmpty()){
-                running = false;
-            }
+        while (running) {
+            synchronized (this) {
+                while (incidentQueue.isEmpty() && running) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
 
-        }
-        for (Drone d : allDrones) {
-            d.stop();   // sets running=false + notifyAll
+                if (!running) return;
+
+                handleEvent(Event.NEW_FIRE);
+            }
         }
     }
 }

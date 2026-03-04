@@ -34,6 +34,14 @@ public class Drone implements Runnable{
         DROPPING_AGENT,
         IDLE
     }
+
+    public enum Event {
+        ASSIGNED_FIRE,
+        ARRIVING_AT_ZONE,
+        LANDED,
+        DROP_COMPLETE,
+
+    }
     private int currentLoad;
     private Status status;// The current status of the drone.
 
@@ -47,6 +55,39 @@ public class Drone implements Runnable{
         this.gui = gui;
         droneId = id;
         currentLoad = MAXLOAD;
+    }
+
+    private void handleEvent(Event e){
+        switch(status){
+            case IDLE:
+                if (e == Event.ASSIGNED_FIRE){
+                    transitionState(Status.FLIGHT);
+                    travelToZone();
+
+                }
+                break;
+            case FLIGHT:
+                if (e == Event.ARRIVING_AT_ZONE){
+                    transitionState(Status.APPROACHING);
+                    approachingZone();
+                }
+                break;
+            case APPROACHING:
+                if(e == Event.LANDED){
+                    transitionState(Status.DROPPING_AGENT);
+                    dropWater();
+                }
+                break;
+            case DROPPING_AGENT:
+                if(e == Event.DROP_COMPLETE){
+                    transitionState(Status.IDLE);
+                    scheduler.firePutOut(currentEvent, this);
+                    scheduler.registerDrone(this); //Reregister this drone for action.
+                    scheduler.droneDone(this);
+                    currentEvent = null;
+                }
+                break;
+        }
     }
 
     /**
@@ -70,8 +111,6 @@ public class Drone implements Runnable{
      */
     public synchronized void event(FireIncidentEvent e){
         this.currentEvent = e;
-        transitionState(Status.FLIGHT);
-
         notifyAll();
     }
 
@@ -100,7 +139,7 @@ public class Drone implements Runnable{
      */
     private void transitionState(Drone.Status s){
         if(status != s){
-            gui.log("Scheduler state: " + status + "->" + s);
+            gui.log("Drone state: " + status + "->" + s);
             this.status = s;
         }
     }
@@ -109,9 +148,8 @@ public class Drone implements Runnable{
      * Simulate the drone travelling to the zone. Change the status of the drone during the simulation
      * accordingly.
      */
-    public double travelToZone(){
+    public void travelToZone(){
         int zoneId = currentEvent.getZone().getId();
-        double travelTime;
         String msg = "Drone " + droneId + " is traveling to zone " + currentEvent.getZone();
         System.out.println(msg);
         gui.log(msg);
@@ -122,12 +160,15 @@ public class Drone implements Runnable{
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-
         System.out.println("Drone status: " + status.toString());
         gui.log("Drone status: " + status.toString());
 
-        transitionState(Status.APPROACHING);
+        handleEvent(Event.ARRIVING_AT_ZONE);
 
+    }
+
+    public double approachingZone(){
+        int zoneId = currentEvent.getZone().getId();
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
             gui.log("Drone " + droneId + " approaching zone " + zoneId);
@@ -144,11 +185,11 @@ public class Drone implements Runnable{
             Thread.currentThread().interrupt();
         }
         scheduler.droneArrived(this);
-        travelTime = calculateTime(currentEvent.getZone())  + TAKE_OFF_TIME + LANDING_TIME;
+        double travelTime = calculateTime(currentEvent.getZone())  + TAKE_OFF_TIME + LANDING_TIME;
         System.out.println("Took drone " + travelTime + " to get to zone.");
         gui.log("Took drone " + travelTime + " to get to zone.");
+        handleEvent(Event.LANDED);
         return travelTime;
-
     }
 
     /**
@@ -156,7 +197,6 @@ public class Drone implements Runnable{
      * @return The fire incident event after the fire has been put out.
      */
     public synchronized FireIncidentEvent dropWater(){
-        transitionState(Status.DROPPING_AGENT);
 
         int waterNeeded = waterRequired(currentEvent);
         int zoneId = currentEvent.getZone().getId();
@@ -197,11 +237,9 @@ public class Drone implements Runnable{
         }
         gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", null);
         currentEvent.getZone().fireExtinguished();//Change the status of the zone.
-        transitionState(Status.IDLE);
+
         FireIncidentEvent event = currentEvent;
-        currentEvent = null;//Empty this event.
-        scheduler.registerDrone(this); //Reregister this drone for action.
-        scheduler.droneDone(this);
+        handleEvent(Event.DROP_COMPLETE);
         return event;
     }
     public synchronized void waitForEvent(){
@@ -232,10 +270,7 @@ public class Drone implements Runnable{
         while(running){
             waitForEvent();
             if(!running)return;
-            FireIncidentEvent e = currentEvent;
-            travelToZone();
-            dropWater();
-            scheduler.firePutOut(e, this);
+            handleEvent(Event.ASSIGNED_FIRE);
         }
     }
 }

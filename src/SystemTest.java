@@ -57,7 +57,7 @@ public class SystemTest{
         //Check that zone status has been updated.
         assertTrue(e.getZone().isFireActive());
         //Scheduler handles event by assigning it to a drone.
-        scheduler.handleEvent();
+        scheduler.handleEvent(Scheduler.Event.NEW_FIRE);
         drone.dropWater();
         //Check that status of event is updated
         //
