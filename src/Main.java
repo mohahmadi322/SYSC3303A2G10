@@ -1,5 +1,9 @@
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+
+/**
+ * The main class, entry point for program. Runs the simulation.
+ */
 public class Main {
     public static void main(String[] args) {
         GUI gui = new GUI();
@@ -7,14 +11,10 @@ public class Main {
 
         Thread schedulerThread = new Thread(scheduler);
         Thread fireIncident = new Thread(new FireIncidentSubsystem(scheduler, gui));
-
+        Thread droneThread = new Thread(new Drone(scheduler, gui, 1));
+        droneThread.start();
         fireIncident.start();
         schedulerThread.start();
 
-        // Create multiple drones
-        for (int i = 0; i < 3; i++) {
-            Thread droneThread = new Thread(new Drone(scheduler, gui));
-            droneThread.start();
-        }
     }
 }
