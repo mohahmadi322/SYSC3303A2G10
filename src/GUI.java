@@ -19,7 +19,7 @@ public class GUI extends JFrame {
     private HashMap<Integer, List<JLabel>> zoneSquares = new HashMap<>(); // Tracks squares per zone
 
     public GUI() {
-        setTitle("Firefighting Drone Swarm");
+        setTitle("Firefighting DroneSubsystem Swarm");
         setSize(800, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
@@ -127,9 +127,9 @@ public class GUI extends JFrame {
 
         legend.add(createLegendItem(Color.RED, "Active fire (H/M/L)"));
         legend.add(createLegendItem(Color.GREEN, "Extinguished fire"));
-        legend.add(createLegendItem(Color.YELLOW, "Drone outbound"));
-        legend.add(createLegendItem(new Color(0,128,0), "Drone extinguishing"));
-        legend.add(createLegendItem(new Color(128,0,128), "Drone returning"));
+        legend.add(createLegendItem(Color.YELLOW, "DroneSubsystem outbound"));
+        legend.add(createLegendItem(new Color(0,128,0), "DroneSubsystem extinguishing"));
+        legend.add(createLegendItem(new Color(128,0,128), "DroneSubsystem returning"));
 
         return legend;
     }
