@@ -1,4 +1,5 @@
 import java.io.*;
+import java.net.*;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -20,19 +21,23 @@ public class FireIncidentSubsystem implements Runnable {
 
     private Scheduler scheduler;//instance of scheduler class used for communication with drones.
     private ArrayList<FireIncidentEvent> incidents;//array of Fire incident events. The objects come from the csv file.
-    public HashMap<Integer, Zone> zones;//Hashmap of zones. The objects come from the csv file. The integer specifies the zone number and zone is the object.
-    private GUI gui;
+    DatagramPacket sendPacket, receivePacket;// Packets for sending and receiving.
+    DatagramSocket sendAndReceiveSocket;//One socket for sending and receiving data.
 
     /**
      * Constructor for FireIncidentSubsystem class.
-     * @param scheduler The central scheduler used for coordination
      */
-    public FireIncidentSubsystem(Scheduler scheduler, GUI gui){
+    public FireIncidentSubsystem(){
         this.scheduler = scheduler;
-        this.gui = gui;
         incidents = new ArrayList<>();
-        zones = new HashMap<>();
+        try {
+            sendAndReceiveSocket = new DatagramSocket();
+        } catch (SocketException se) {
+            se.printStackTrace();
+            System.exit(1);
+        }
     }
+
 
     /**
      * Create FireIncidentEvent from a row of the csv file.
@@ -46,58 +51,10 @@ public class FireIncidentSubsystem implements Runnable {
         int zoneID = Integer.parseInt(values[1].trim());//Get the zone from the second column.
         FireIncidentEvent.Status status= FireIncidentEvent.Status.valueOf(values[2]);//Get the status of the fire from the third column.
         FireIncidentEvent.Severity severity= FireIncidentEvent.Severity.valueOf(values[3]);//Get the severity from the fourth column.
-        return new FireIncidentEvent(time,zones.get(zoneID),status,severity);//Return a FireIncidentEvent using the parameters from values.
+        return new FireIncidentEvent(time,Zone.zonesHash.get(zoneID),status,severity);//Return a FireIncidentEvent using the parameters from values.
     }
 
-    /**
-     * Create Zone from a row of the csv file.
-     * @param values The row from csv file holding the values of the Zone.
-     * @return The Zone from the file.
-     */
-    public Zone readZoneFile(String[] values){
-        int id = Integer.parseInt(values[0].trim());// Get the id from the first column.
 
-
-        /**Extracting the dimensions of the zones, "(0;0)" -> "0;0" -> ["0","0"]*/
-        String[] start = values[1]
-                .replace("(", "")
-                .replace(")", "")
-                .split(";");
-
-        String[] end = values[2]
-                .replace("(", "")
-                .replace(")", "")
-                .split(";");
-
-        int startX = Integer.parseInt(start[0].trim());
-        int startY = Integer.parseInt(start[1].trim());
-
-        int endX = Integer.parseInt(end[0].trim());
-        int endY = Integer.parseInt(end[1].trim());
-
-        return new Zone(id, startX, startY, endX, endY);
-    }
-
-    /**
-     * Parse the zones from the csv file.
-     * @param filePath The path of the file containing the zones.
-     * @return A HashMap structure containing the zones and their zone id.
-     */
-    public HashMap<Integer, Zone> parseZones(String filePath) {
-        HashMap<Integer, Zone> zones = new HashMap<>();
-        try (BufferedReader bf = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            bf.readLine(); // Skip the first line of the file
-            while ((line = bf.readLine()) != null) {
-                String[] values = line.split(",");
-                Zone zone = readZoneFile(values);//Call the readZoneFile method to create an object.
-                zones.put(zone.getId(), zone);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return zones;
-    }
 
     /**
      * Parse the FireIncidentEvent from the csv file.
@@ -129,9 +86,29 @@ public class FireIncidentSubsystem implements Runnable {
      */
     public synchronized void firePutout(Zone zone){
         System.out.println("Fire subsystem: Fire is put out at zone " + zone.toString());
-        gui.log("Fire subsystem: Fire is put out at zone " + zone.toString());
         zone.fireExtinguished();
         notifyAll();
+    }
+
+    private void sendFireIncident(FireIncidentEvent e) throws UnknownHostException {
+        String message = e.serialize();
+
+        byte[] data = message.getBytes();
+
+        DatagramPacket packet = new DatagramPacket(
+                data,
+                data.length,
+                InetAddress.getLocalHost(),
+                5000
+        );
+
+        try{
+            sendAndReceiveSocket.send(packet);
+        }catch(SocketException exception){} catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        System.out.println("Sent: " + message);
     }
 
     /**
@@ -140,10 +117,19 @@ public class FireIncidentSubsystem implements Runnable {
      */
     @Override
     public void run() {
-        zones = parseZones("Zone_File.csv");
         incidents = parseIncidentFiles("Event_File.csv");
         for(FireIncidentEvent e: incidents){
-            scheduler.newIncident(e);
+            try {
+                sendFireIncident(e);
+            } catch (UnknownHostException ex) {
+                throw new RuntimeException(ex);
+            }
         }
+    }
+
+    public static void main(String[] args) {
+        Zone.parseZones("Zone_File.csv");
+        Thread fireIncident = new Thread(new FireIncidentSubsystem());
+        fireIncident.start();
     }
 }

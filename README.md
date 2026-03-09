@@ -1,4 +1,4 @@
-SYSC3303 – Fire Incident Drone Simulation
+SYSC3303 – Fire Incident DroneSubsystem Simulation
 Group 10
 =========================================
 
@@ -8,7 +8,7 @@ to extinguish fires detected across multiple geographic zones. The system includ
 • A Scheduler that assigns drones to fire events
 • A Fire Incident Subsystem that reads and generates events
 • A GUI that visualizes zones, fires, and drone activity
-• A Drone subsystem that travels, extinguishes fires, and returns to base
+• A DroneSubsystem subsystem that travels, extinguishes fires, and returns to base
 • A JUnit test validating core functionality
 
 
@@ -38,7 +38,7 @@ Central controller of the system:
 • Assigns drones to events
 • Updates the GUI when fires start or are extinguished
 
-Drone.java
+DroneSubsystem.java
 ----------
 Represents a single autonomous drone:
 • Waits for events from the Scheduler
@@ -85,7 +85,7 @@ SystemTest.java
 JUnit tests validating:
 • File parsing
 • Zone assignment
-• Scheduler–Drone communication
+• Scheduler–DroneSubsystem communication
 • Fire extinguishing logic
 
 SchedulerTest.java
@@ -98,7 +98,7 @@ JUnit tests validating the FireIncidentSubsystem class
 
 DroneTest.java
 ---------------
-JUnit tests validating the Drone class
+JUnit tests validating the DroneSubsystem class
 
 
 ------------------------------------------------------------
@@ -134,7 +134,7 @@ Run the JUnit tests in SystemTest.java to verify:
 
 • CSV parsing
 • Zone mapping
-• Scheduler–Drone communication
+• Scheduler–DroneSubsystem communication
 • Fire extinguishing behavior
 
 Tests can be run via IntelliJ
@@ -158,7 +158,7 @@ Tests can be run via IntelliJ
 Team Responsibilities – Iteration 1
 -----------------------------------
 •Zeina: GUI design and integration, readme file
-• Mohammad: Implemented the core code structure for the Scheduler, Drone, and Fire Incident Subsystem. 
+• Mohammad: Implemented the core code structure for the Scheduler, DroneSubsystem, and Fire Incident Subsystem. 
 Developed the event parsing and communication logic
 • Leena: sequence and class diagrams
 

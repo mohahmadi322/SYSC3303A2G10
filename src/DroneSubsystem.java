@@ -1,6 +1,8 @@
-import java.awt.*;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.io.IOException;
+import java.net.*;
+import java.time.LocalTime;
+import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
  * The drone subsystem. Takes an event assigned to it by the scheduler and travels to the zone to put the fire out.
@@ -12,12 +14,8 @@ import java.util.Queue;
  * @date 2026-01-31
  */
 
-public class Drone implements Runnable{
-    private Scheduler scheduler; //Instane of scheduler to be used for communication with fire incident subsystem.
+public class DroneSubsystem implements Runnable{
     private FireIncidentEvent currentEvent; // The current event assigned to the drone.
-
-    private GUI gui;
-    private int droneId;
 
     private static int MAXLOAD = 15; // The max load drone can hold. Value is from iteration 0.
     private static int STARTING_ZONE_X = 0; //X coordinate of the starting point of the drone.
@@ -45,19 +43,78 @@ public class Drone implements Runnable{
     private int currentLoad;
     private Status status;// The current status of the drone.
 
+    // 1. Create a static AtomicInteger shared across all instances of this class
+    private static final AtomicInteger idCounter = new AtomicInteger(0);
+
+    // 2. Create a final instance variable to hold the unique ID for the specific object
+    private final int droneId;
+    private DatagramPacket sendPacket, receivePacket;
+    private DatagramSocket sendReceiveSocket;
+
     /**
      * Constructor for drone. Sets the status of the drone to idle.
-     * @param s Scheduler the drone will use for communication and to be assigned tasks.
+     * @param id ID number of drone.
      */
-    public Drone (Scheduler s, GUI gui, int id){
-        scheduler = s;
+    public DroneSubsystem(int id) throws UnknownHostException {
         status = Status.IDLE;
-        this.gui = gui;
-        droneId = id;
+        notifyDroneReady();
+        droneId = idCounter.incrementAndGet();
         currentLoad = MAXLOAD;
+        try {
+            sendReceiveSocket = new DatagramSocket(6000 + droneId);
+        } catch (SocketException se) {
+            se.printStackTrace();
+            System.exit(1);
+        }
+    }
+    /**
+     * Main gameplay loop.
+     * Receives packets from host, prompts the user to make a move for the next command to be sent as a DatagramPacket to the host.
+     * If the user types "QUIT" the program will close the socket and exit.
+     */
+    public void sendAndReceive() throws IOException {
+        byte[] data = new byte[200];
+
+        receivePacket = new DatagramPacket(data, data.length);
+
+        sendReceiveSocket.receive(receivePacket );
+
+
+        String msg = new String(receivePacket .getData(),0,receivePacket .getLength());
+
+        String[] parts = msg.split("\\|");
+        System.out.println(parts + "DroneSubsystem tesstststs");
+        if(parts[0].equals("ASSIGN")){
+
+            LocalTime time = LocalTime.parse(parts[1]);
+            int zoneID = Integer.parseInt(parts[2]);
+
+            Zone zone = Zone.findZoneById(zoneID);
+
+            FireIncidentEvent e = new FireIncidentEvent(
+                    time,
+                    zone,
+                    FireIncidentEvent.Status.valueOf(parts[3]),
+                    FireIncidentEvent.Severity.valueOf(parts[4])
+            );
+
+            event(e);  // existing state machine
+
+        }
+        if(parts[0].equals("DONE")){
+
+            stop();
+
+        }
     }
 
-    private void handleEvent(Event e){
+    /**
+     * Handle events in the drone state machine.
+     * @param e The event to be handled.
+     * @throws UnknownHostException
+     */
+
+    private synchronized void handleEvent(Event e) throws UnknownHostException {
         switch(status){
             case IDLE:
                 if (e == Event.ASSIGNED_FIRE){
@@ -81,13 +138,27 @@ public class Drone implements Runnable{
             case DROPPING_AGENT:
                 if(e == Event.DROP_COMPLETE){
                     transitionState(Status.IDLE);
-                    scheduler.firePutOut(currentEvent, this);
-                    scheduler.registerDrone(this); //Reregister this drone for action.
-                    scheduler.droneDone(this);
+                    firePutOut();
+                    notifyDroneReady();
                     currentEvent = null;
                 }
                 break;
         }
+    }
+
+    /**
+     * Send schedular a message stating that the fire has been extinguished.
+     * @throws UnknownHostException
+     */
+    private void firePutOut() throws UnknownHostException {
+        String msg = "EXTINGUISHED|" + currentEvent.getZone().getId() + "|"+ droneId;
+        byte[] data = msg.getBytes();
+        sendPacket = new DatagramPacket(data,
+                data.length, InetAddress.getLocalHost(), 5000);
+        try{
+            sendReceiveSocket.send(sendPacket);
+            System.out.println(msg + "From drone");
+        }catch(Exception e){}
     }
 
     /**
@@ -109,8 +180,9 @@ public class Drone implements Runnable{
      * The method called by the scheduler to assign an event to the drone.
      * @param e The fire drone needs to put out.
      */
-    public synchronized void event(FireIncidentEvent e){
+    public synchronized void event(FireIncidentEvent e) throws UnknownHostException {
         this.currentEvent = e;
+        handleEvent(Event.ASSIGNED_FIRE);
         notifyAll();
     }
 
@@ -137,9 +209,8 @@ public class Drone implements Runnable{
      * Transitions state to the next one based on what is occurring.
      * @param s next state
      */
-    private void transitionState(Drone.Status s){
+    private void transitionState(DroneSubsystem.Status s){
         if(status != s){
-            gui.log("Drone state: " + status + "->" + s);
             this.status = s;
         }
     }
@@ -148,46 +219,47 @@ public class Drone implements Runnable{
      * Simulate the drone travelling to the zone. Change the status of the drone during the simulation
      * accordingly.
      */
-    public void travelToZone(){
+    public void travelToZone() throws UnknownHostException {
         int zoneId = currentEvent.getZone().getId();
-        String msg = "Drone " + droneId + " is traveling to zone " + currentEvent.getZone();
+        String msg = "DroneSubsystem " + droneId + " is traveling to zone " + currentEvent.getZone();
         System.out.println(msg);
-        gui.log(msg);
 
         try {
             Thread.sleep((int)(TAKE_OFF_TIME * 1000));
-            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", Color.YELLOW);
+            updateScheduler("DRONE_OUTBOUND|" + droneId + "|" + zoneId);
+
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        System.out.println("Drone status: " + status.toString());
-        gui.log("Drone status: " + status.toString());
-
+        System.out.println("DroneSubsystem status: " + status.toString());
         handleEvent(Event.ARRIVING_AT_ZONE);
 
     }
 
-    public double approachingZone(){
+    /**
+     * Simulate the drone approaching zone with fire.
+     * @return Time it took to get to zone.
+     * @throws UnknownHostException
+     */
+
+    public double approachingZone() throws UnknownHostException {
         int zoneId = currentEvent.getZone().getId();
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
-            gui.log("Drone " + droneId + " approaching zone " + zoneId);
-            System.out.println("Drone status: " + status.toString());
+            updateScheduler("DRONE_APPROACHING|" + droneId + "|" + zoneId);
+            System.out.println("DroneSubsystem status: " + status.toString());
 
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
         try {
             Thread.sleep((int)(LANDING_TIME * 1000));
-            System.out.println("Drone has landed");
-            gui.log("Drone landed");
+            System.out.println("DroneSubsystem has landed");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        scheduler.droneArrived(this);
         double travelTime = calculateTime(currentEvent.getZone())  + TAKE_OFF_TIME + LANDING_TIME;
         System.out.println("Took drone " + travelTime + " to get to zone.");
-        gui.log("Took drone " + travelTime + " to get to zone.");
         handleEvent(Event.LANDED);
         return travelTime;
     }
@@ -196,7 +268,7 @@ public class Drone implements Runnable{
      * Simulate the drone dropping water on the fire and signal the scheduler that the drone is ready again for action.
      * @return The fire incident event after the fire has been put out.
      */
-    public synchronized FireIncidentEvent dropWater(){
+    public synchronized FireIncidentEvent dropWater() throws UnknownHostException {
 
         int waterNeeded = waterRequired(currentEvent);
         int zoneId = currentEvent.getZone().getId();
@@ -211,12 +283,10 @@ public class Drone implements Runnable{
         try {
             Thread.sleep((int)(timeLoad * 1000));
 
-            String msg = "Drone " + droneId + " dropped " + waterNeeded + "L at zone " + currentEvent.getZone();
+            String msg = "DroneSubsystem " + droneId + " dropped " + waterNeeded + "L at zone " + currentEvent.getZone();
             System.out.println(msg);
-            gui.log(msg);
-            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(0,128,0));
-            msg = "Drone has " + currentLoad + " water left in the tank.";
-            gui.log(msg);
+            updateScheduler("DRONE_DROPPING|" + droneId + "|" + zoneId);
+            msg = "DroneSubsystem has " + currentLoad + " water left in the tank.";
             System.out.println(msg);
             Thread.sleep(500);
 
@@ -226,22 +296,25 @@ public class Drone implements Runnable{
 
 
         try {
-            // Drone returning (purple)
-            gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(128,0,128));
+            // DroneSubsystem returning (purple)
             Thread.sleep(500);
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
-            System.out.println("Drone is heading back to origin");
-            gui.log("Drone heading back to origin");
+            updateScheduler("DRONE_RETURNING|" + droneId + "|" + zoneId);
+            System.out.println("DroneSubsystem is heading back to origin");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", null);
         currentEvent.getZone().fireExtinguished();//Change the status of the zone.
-
+        updateScheduler("DRONE_CLEAR|" + droneId + "|" + zoneId);
         FireIncidentEvent event = currentEvent;
         handleEvent(Event.DROP_COMPLETE);
+
         return event;
     }
+
+    /**
+     * Wait for an event before doing anything.
+     */
     public synchronized void waitForEvent(){
         while (currentEvent == null && running) {
             try {
@@ -262,16 +335,67 @@ public class Drone implements Runnable{
     }
 
     /**
+     * Getter method for the drone ID.
+     * @return ID of drone object.
+     */
+    public int getID(){
+        return droneId;
+    }
+
+    /**
+     * Sends packet to scheduler with messages of current drone status.
+     * @param msg
+     */
+    private void updateScheduler(String msg) {
+        try {
+            byte[] data = msg.getBytes();
+
+            sendPacket = new DatagramPacket(
+                    data,
+                    data.length,
+                    InetAddress.getLocalHost(),
+                    5000   // scheduler port
+            );
+
+            sendReceiveSocket.send(sendPacket);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Register the drone and put out assigned fires until the scheduler is out of events.
      */
     @java.lang.Override
     public void run() {
-        scheduler.registerDrone(this);
         while(running){
-            waitForEvent();
             if(!running)return;
-            handleEvent(Event.ASSIGNED_FIRE);
+            try {
+                sendAndReceive();
+            } catch (UnknownHostException e) {
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
+    }
+
+    private void notifyDroneReady() throws UnknownHostException {
+        String msg = "DRONE_READY|"+ droneId;
+        byte[] data = msg.getBytes();
+        sendPacket = new DatagramPacket(data, data.length,InetAddress.getLocalHost(), 5000);
+        try{
+            sendReceiveSocket.send(sendPacket);
+        }catch (Exception e){}
+
+
+    }
+    public static void main(String[] args) throws UnknownHostException {
+        Zone.parseZones("Zone_File.csv");
+        Thread droneThread = new Thread(new DroneSubsystem(1));
+        droneThread.start();
+
     }
 }
 

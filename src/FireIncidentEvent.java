@@ -87,4 +87,11 @@ public class FireIncidentEvent {
         return "Time:"+ time.toString() + " | " + "Zone:" + zone + " | " + "Event type:"+
                 status + " | " + "Severity:" + severity;
     }
+
+    public String serialize(){
+        return "FIRE" + "|" + time.toString() + "|" +
+                zone.getId() + "|" +
+                status + "|" +
+                severity;
+    }
 }
