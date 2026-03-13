@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.net.*;
@@ -10,31 +11,36 @@ import java.util.*;
  *
  * Implements Runnable interface.
  *
+ *  Assign fires to drones realistically:
+ *   1. Prefer drones with enough water
+ *   2. Among them, choose the closest
+ *   3. If tied, choose the one with the most water
+ *   4. If none have enough water, choose the closest anyway
+ *   5. Apply path-based reassignment rule (Iteration 3 hint)
+ *  Communicate with drones via UDP
+ *  Update GUI
+ *
  * @author Mohammad Ahmadi
+ * @author Zeina Mouhtadi
  * @date 2026-01-31
  */
 public class Scheduler implements Runnable{
-    private Queue<FireIncidentEvent> incidentQueue;//Queue of fires that need to be put out.
-    private Queue<Integer> availableDrones;//Queue of available drones.
-    private ArrayList<Integer> allDrones;//Array of all the drones.
+
+    //Queue of all fires waiting to be handled
+    private Queue<FireIncidentEvent> fireQueue;
+
+    // Stores all drones known to the Scheduler.
+    // Key = drone ID, Value = DroneInfo (Scheduler-side representation)
+    private Map<Integer, DroneInfo> drones;
+
+    // Active fires by zone (used for extinguished logic)
+    private Map<Integer, FireIncidentEvent> activeEventsByZone;
+
     private volatile boolean running = true;//Flag to check system is running.
     private GUI gui;
 
-    private FireIncidentEvent currEvent;
-
     public enum Status{//The statuses of the drone.
         IDLE,
-        FIRE_DETECTED,
-        DRONE_REQUESTED,
-        WAIT,
-    }
-
-    public enum Event{
-        NEW_FIRE,
-        DRONE_AVAILABLE,
-        DRONE_DISPATCHED,
-        FIRE_EXTINGUISHED,
-        STOP
     }
 
     private Scheduler.Status status;// The current status of the scheduler.
@@ -43,17 +49,52 @@ public class Scheduler implements Runnable{
     private DatagramSocket sendSocket;//Sockets for sending packets.
 
     /**
+     * Internal representation of a drone.
+     * Tracks:
+     *  - ID
+     *  - UDP port
+     *  - current state
+     *  - current zone
+     *  - water remaining
+     */
+
+    public class DroneInfo {
+        public int id; // Drone ID (unique)
+        public int port; // UDP port for sending assignments
+        int targetZone;     // Zone the drone is currently heading to
+        public DroneState state;
+        public int currentZone; // Last known zone of the drone
+        public int agentCapacity = 15;
+        public int agentRemaining = 15;
+
+        public DroneInfo(int id, int port) {
+            this.id = id;
+            this.port = port;
+            this.state = DroneState.IDLE;
+            this.currentZone = -1;
+            this.targetZone = -1;
+        }
+
+        public enum DroneState {
+            IDLE,
+            OUTBOUND,
+            APPROACHING,
+            DROPPING,
+            RETURNING
+        }
+    }
+
+    /**
      * Constructor methods for Scheduler class. Initialized the queues and array.
      * @param gui an instance of the GUI class.
      */
     public Scheduler(GUI gui){
         this.gui = gui;
-        incidentQueue = new LinkedList<>();
-        availableDrones = new LinkedList<>();
-        allDrones = new ArrayList<>();
+        fireQueue = new LinkedList<>();
+        drones = new HashMap<>();
+        activeEventsByZone = new HashMap<>();
+
         status = Status.IDLE;
-        availableDrones.add(1);
-        allDrones.add(1);
 
         try {
             sendSocket = new DatagramSocket();
@@ -79,6 +120,10 @@ public class Scheduler implements Runnable{
         String[] parts = msg.split("\\|");
 
         switch (parts[0]){
+            /**
+             * FIRE|time|zone|status|severity
+             * Add fire to queue and display red severity square.
+             */
             case "FIRE":
                 System.out.println("Scheduler received: " + msg);
 
@@ -87,139 +132,163 @@ public class Scheduler implements Runnable{
 
                 Zone zone = Zone.findZoneById(zoneID);
 
-                currEvent = new FireIncidentEvent(
+                FireIncidentEvent event = new FireIncidentEvent(
                         time,
                         zone,
                         FireIncidentEvent.Status.valueOf(parts[3]),
                         FireIncidentEvent.Severity.valueOf(parts[4])
                 );
-                gui.updateOrReplaceSquare(
+
+                activeEventsByZone.put(zoneID, event);
+                fireQueue.add(event);
+
+                SwingUtilities.invokeLater(() ->
+                        gui.updateOrReplaceSquare(
                         zoneID,
-                        GUI.severityLetter(currEvent.getSeverity()),
+                        GUI.severityLetter(event.getSeverity()),
                         Color.RED
-                );
+                ));
 
-                gui.log("Fire detected at zone " + zoneID);
-
-                newIncident(currEvent);
-
+                assignDrone();
                 break;
+            /**
+             * EXTINGUISHED|zone|droneID
+             * Remove fire, update drone water, show green square.
+             */
             case "EXTINGUISHED":
                 System.out.println("Scheduler received: " + msg);
 
                 zoneID = Integer.parseInt(parts[1]);
-                int droneID = Integer.parseInt(parts[2]);
+                int droneID2 = Integer.parseInt(parts[2]);
 
-                zone = Zone.findZoneById(zoneID);
+                FireIncidentEvent done = activeEventsByZone.remove(zoneID);
+                DroneInfo drone = drones.get(droneID2);
 
-                firePutOut(currEvent,zone, droneID);
+                if (done != null) {
+                    int used = waterRequired(done);
+                    drone.agentRemaining -= used;
+                    if (drone.agentRemaining < 0) drone.agentRemaining = 0;
+
+                    Zone z = Zone.findZoneById(zoneID);
+                    z.fireExtinguished();
+
+                    SwingUtilities.invokeLater(() -> {
+                        gui.updateOrReplaceSquare(zoneID, " ", null);   // FULL CLEAR
+                        gui.updateOrReplaceSquare(zoneID, " ", Color.GREEN); // Show extinguished
+                    });
+                }
+                drone.currentZone = -1;
+                drone.targetZone = -1;
+
+                assignDrone();
                 break;
-            case "DRONE_OUTBOUND":
 
+            case "DRONE_OUTBOUND":
+                updateDrone(parts, DroneInfo.DroneState.OUTBOUND, Color.YELLOW);
+                break;
+
+            case "DRONE_APPROACHING":
+                updateDrone(parts, DroneInfo.DroneState.APPROACHING, Color.ORANGE);
+                break;
+
+            case "DRONE_DROPPING":
+                updateDrone(parts, DroneInfo.DroneState.DROPPING, new Color(0, 128, 0));
+                break;
+
+            case "DRONE_RETURNING":
+                updateDrone(parts, DroneInfo.DroneState.RETURNING,new Color(0,128,0));
+                break;
+
+            case "DRONE_CLEAR":
                 int droneId = Integer.parseInt(parts[1]);
                 int zoneId = Integer.parseInt(parts[2]);
-
-                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", Color.YELLOW);
+                SwingUtilities.invokeLater(() ->
+                        gui.updateOrReplaceSquare(zoneId, " ", null));
                 break;
-            case "DRONE_APPROACHING":
-                 droneId = Integer.parseInt(parts[1]);
-                 zoneId = Integer.parseInt(parts[2]);
 
-                gui.log("DroneSubsystem " + droneId + " approaching zone " + zoneId);
-                break;
-            case "DRONE_DROPPING":
-                droneId = Integer.parseInt(parts[1]);
-                zoneId = Integer.parseInt(parts[2]);
-
-                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(0,128,0));
-                break;
-            case "DRONE_RETURNING":
-                droneId = Integer.parseInt(parts[1]);
-                zoneId = Integer.parseInt(parts[2]);
-
-                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", new Color(0,128,0));
-                break;
-            case "DRONE_CLEAR":
-
-                droneId = Integer.parseInt(parts[1]);
-                zoneId = Integer.parseInt(parts[2]);
-                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", null);
-                break;
             case "DRONE_READY":
 
                 droneId = Integer.parseInt(parts[1]);
 
-                if(!allDrones.contains(droneId)){
-                    allDrones.add(droneId);
-                }
+                drones.putIfAbsent(droneId, new DroneInfo(droneId, 6000 + droneId));
 
-                availableDrones.add(droneId);
+                DroneInfo d = drones.get(droneId);
+                d.state = DroneInfo.DroneState.IDLE;
+                d.agentRemaining = d.agentCapacity;
 
-                gui.log("Drone " + droneId + " is ready");
+                SwingUtilities.invokeLater(() -> gui.log("Drone " + droneId + " is ready"));
 
-                handleEvent(Event.DRONE_AVAILABLE);
+                assignDrone();
                 break;
         }
-
-
     }
 
+    // Updates the GUI to show the drone's current state.
+    private void updateDrone(String[] parts, DroneInfo.DroneState state, Color color) {
+        int droneId = Integer.parseInt(parts[1]);
+        int zoneId = Integer.parseInt(parts[2]);
 
-    /**
-     * Register a new fire from the Fire Incident subsystem.
-     * @param fireIncidentEvent The fire that is happening.
-     */
-    public synchronized void newIncident  (FireIncidentEvent fireIncidentEvent) throws UnknownHostException {
-        if(fireIncidentEvent == null){//This ensures that a null event is not added.
-            try{
-                System.out.println("No new fires at the moment");
-                gui.log("No new fires at the moment");
-                wait();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        fireIncidentEvent.getZone().activeFire();
-        incidentQueue.add(fireIncidentEvent);
-        System.out.println("Scheduler has received new fire event:\n" + fireIncidentEvent.toString() );
+        DroneInfo info = drones.get(droneId);
+        info.state = state;
+        info.currentZone = zoneId;
 
-        gui.log("Scheduler has received new fire event:\n" + fireIncidentEvent);
-        // Display the fire on the zone map by placing a red severity square (H/M/L).
-        // updateOrReplaceSquare ensures the zone shows ONLY the current fire state
-        gui.updateOrReplaceSquare(fireIncidentEvent.getZone().getId(),
-                GUI.severityLetter(fireIncidentEvent.getSeverity()), Color.RED);
-        handleEvent(Event.NEW_FIRE);
-
-        notifyAll();
+        // Update GUI to show drone at this zone
+        SwingUtilities.invokeLater(() ->
+                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", color));
     }
 
     /**
-     * Handles an event by assigning it to a drone to handle.
+     * Assigns the best available drone to the next fire in queue.
      */
     public synchronized void assignDrone() throws UnknownHostException {
-        //If program is not running, and  either one of the drone or incident queue is empty, then thread waits.
-        while((incidentQueue.isEmpty() || availableDrones.isEmpty()) && running){
-            try{
-                wait();
-            }catch (InterruptedException e) {throw new RuntimeException();}
-        }
-        if(!running)return;
-        FireIncidentEvent e = incidentQueue.poll();//Get head of queue.
-        int drone = availableDrones.poll();
+        if (fireQueue.isEmpty()) return;
 
+        FireIncidentEvent fire = fireQueue.peek();
+        int required = waterRequired(fire);
+
+        DroneInfo best = null;
+        int bestScore = Integer.MAX_VALUE;
+
+        for (DroneInfo d : drones.values()) {
+            if (d.state != DroneInfo.DroneState.IDLE) continue;
+
+            int score = computeScore(d, fire);
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = d;
+            }
+        }
+
+        if (best == null) return;
+
+        fireQueue.remove(fire);
+
+        sendAssign(best, fire);
+
+        best.state = DroneInfo.DroneState.OUTBOUND;
+        best.currentZone = fire.getZone().getId();
+        best.targetZone = fire.getZone().getId();
+    }
+/**
+ * SEND ASSIGN MESSAGE
+ */
+        private void sendAssign(DroneInfo d, FireIncidentEvent fire) throws UnknownHostException {
+        //build assign message
         String message = "ASSIGN|" +
-                e.getTime() + "|" +
-                e.getZone().getId() + "|" +
-                e.getStatus() + "|" +
-                e.getSeverity();
+                fire.getTime() + "|" +
+                fire.getZone().getId() + "|" +
+                fire.getStatus() + "|" +
+                fire.getSeverity();
 
         byte[] data = message.getBytes();
 
+        //send it to the drone's port
         DatagramPacket packet = new DatagramPacket(
                 data,
                 data.length,
                 InetAddress.getLocalHost(),
-                6000 + drone
+                d.port
         );
 
         try{
@@ -228,91 +297,74 @@ public class Scheduler implements Runnable{
             throw new RuntimeException(ex);
         }
 
+        SwingUtilities.invokeLater(() ->
+                gui.log("Assigned drone " + d.id + " to zone " + fire.getZone().getId())
+        );
+
         System.out.println("Sent: " + message);
 
         notifyAll();
 
     }
 
+
+
     /**
-     * Fire has been put out. Notify GUI and FireIncidentSubsystem. DroneSubsystem is added back to available drone queue.
-     *  @param e the fire that has been extinguished.
-     *  @param zone The zone with the fire that has been extinguished.
-     * @param drone The drone that is to be readded to the drone queue.
+     * SCORING:
+     *   Prefer drones with enough water
+     *   Prefer the closest drone
+     *   Prefer drone with more water
+     *   Apply path-based reassignment rule
+     *   Scoring function for drone selection.
+     *   Lower score = better drone.
      */
-    public synchronized void firePutOut(FireIncidentEvent e, Zone zone, int drone) throws UnknownHostException {
-        gui.updateOrReplaceSquare(zone.getId(), GUI.severityLetter(e.getSeverity()), null);
-        //ADD a green square to show the fire is extinguished
-        gui.updateOrReplaceSquare(zone.getId(), " ", Color.GREEN);
-        zone.fireExtinguished();
+    private int computeScore(DroneInfo d, FireIncidentEvent f) {
 
-        availableDrones.add(drone);
-        gui.updateOrReplaceSquare(zone.getId(), "D(" + drone + ")", null);
-        handleEvent(Event.FIRE_EXTINGUISHED);
-        gui.updateOrReplaceSquare(zone.getId(), GUI.severityLetter(e.getSeverity()), null);
+        int fireZone = f.getZone().getId();
+        int required = waterRequired(f);
 
-        notifyAll();
+        int droneZone = (d.currentZone == -1 ? 1 : d.currentZone);
 
+        int score = distanceBetweenZones(droneZone, fireZone);
+
+        // Prefer drones with enough water
+        if (d.agentRemaining >= required) score -= 50;
+
+        // Prefer drones with more water
+        score -= d.agentRemaining;
+
+            // Severity priority: High > Moderate > Low
+            int severityWeight = switch (f.getSeverity()) {
+                case High -> -200;
+                case Moderate -> -100;
+                case Low -> 0;
+            };
+            score += severityWeight;
+
+        return score;
     }
 
-    /**
-     * Returns the current status of the scheduler.
-     * @return Status
+    /***
+     *  Computes the distance between two zones in the 4x4 grid.
+     *  Used to estimate how far a drone is from a fire.
+     * @param a
+     * @param b
+     * @return
      */
-    public Status getStatus(){return status;}
-
-    /**
-     * Handles the events of the state machine and changes the state of the scheduler accordingly.
-     * @param e The event.
-     * @throws UnknownHostException
-     */
-    private synchronized void handleEvent (Event e) throws UnknownHostException {
-
-        switch(status){
-            case IDLE:
-                if(e == Event.NEW_FIRE){
-                    transitionState(Status.FIRE_DETECTED);
-                    handleEvent(Event.DRONE_AVAILABLE);
-                }
-                break;
-
-            case FIRE_DETECTED:
-                if(e == Event.DRONE_AVAILABLE){
-                    if(!availableDrones.isEmpty()){
-                        assignDrone();
-                        transitionState(Status.DRONE_REQUESTED);
-                    }
-                }
-                break;
-
-            case DRONE_REQUESTED:
-                transitionState(Status.WAIT);
-                break;
-
-            case WAIT:
-                if(e == Event.FIRE_EXTINGUISHED){
-                    currEvent = null;
-
-                    transitionState(Status.IDLE);
-
-                }
-                break;
-
-        }
-
-
+    private int distanceBetweenZones(int a, int b) {
+        int ar = (a - 1) / 4, ac = (a - 1) % 4;
+        int br = (b - 1) / 4, bc = (b - 1) % 4;
+        return Math.abs(ar - br) + Math.abs(ac - bc);
     }
 
-    /**
-     * Transitions between the states of the scheduler.
-     * @param s The current status
-     */
-    private void transitionState(Status s){
-        if(status != s){
-            gui.log("Scheduler state: " + status + "->" + s);
-            this.status = s;
-        }
+    private int waterRequired(FireIncidentEvent e) {
+        return switch (e.getSeverity()) {
+            case Low -> 10;
+            case Moderate -> 20;
+            case High -> 30;
+        };
     }
+
 
     /**
      * While program is running handle events. Once program is no longer running call the drones to stop.
@@ -321,7 +373,6 @@ public class Scheduler implements Runnable{
     public void run() {
         Zone.parseZones("Zone_File.csv");
         while (running) {
-
                 try {
                     sendAndReceive();
                 } catch (IOException e) {

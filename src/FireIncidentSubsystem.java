@@ -15,20 +15,18 @@ import java.util.*;
  * Implements runnable interface as an active object.
  *
  * @author Mohammad Ahmadi 101267874
+ * @author zeina Mouhtadi 101169685
  * @date 2026-01-31
  */
 public class FireIncidentSubsystem implements Runnable {
 
-    private Scheduler scheduler;//instance of scheduler class used for communication with drones.
     private ArrayList<FireIncidentEvent> incidents;//array of Fire incident events. The objects come from the csv file.
-    DatagramPacket sendPacket, receivePacket;// Packets for sending and receiving.
     DatagramSocket sendAndReceiveSocket;//One socket for sending and receiving data.
 
     /**
      * Constructor for FireIncidentSubsystem class.
      */
     public FireIncidentSubsystem(){
-        this.scheduler = scheduler;
         incidents = new ArrayList<>();
         try {
             sendAndReceiveSocket = new DatagramSocket();

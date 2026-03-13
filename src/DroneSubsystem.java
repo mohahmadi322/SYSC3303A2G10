@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Implements the runnable interface.
  *
  * @author Mohammad Ahmadi 101267874
+ * @author Zeina Mouhtadi
  * @date 2026-01-31
  */
 
@@ -30,6 +31,7 @@ public class DroneSubsystem implements Runnable{
         FLIGHT,
         APPROACHING,
         DROPPING_AGENT,
+        RETURNING,
         IDLE
     }
 
@@ -53,11 +55,10 @@ public class DroneSubsystem implements Runnable{
 
     /**
      * Constructor for drone. Sets the status of the drone to idle.
-     * @param id ID number of drone.
+     *
      */
-    public DroneSubsystem(int id) throws UnknownHostException {
+    public DroneSubsystem() throws UnknownHostException {
         status = Status.IDLE;
-        notifyDroneReady();
         droneId = idCounter.incrementAndGet();
         currentLoad = MAXLOAD;
         try {
@@ -66,6 +67,7 @@ public class DroneSubsystem implements Runnable{
             se.printStackTrace();
             System.exit(1);
         }
+        notifyDroneReady();
     }
     /**
      * Main gameplay loop.
@@ -83,7 +85,7 @@ public class DroneSubsystem implements Runnable{
         String msg = new String(receivePacket .getData(),0,receivePacket .getLength());
 
         String[] parts = msg.split("\\|");
-        System.out.println(parts + "DroneSubsystem tesstststs");
+        System.out.println(parts + "DroneSubsystem tests");
         if(parts[0].equals("ASSIGN")){
 
             LocalTime time = LocalTime.parse(parts[1]);
@@ -137,13 +139,36 @@ public class DroneSubsystem implements Runnable{
                 break;
             case DROPPING_AGENT:
                 if(e == Event.DROP_COMPLETE){
-                    transitionState(Status.IDLE);
                     firePutOut();
-                    notifyDroneReady();
+                    if (currentLoad == 0) {
+                        // Tank empty → must return to origin
+                        System.out.println("Drone " + droneId + " has 0 water. Returning to origin to refill.");
+                        transitionState(Status.RETURNING);
+                        returnToOrigin();
+                    } else {
+                        // Still has water → drone is available
+                        transitionState(Status.IDLE);
+                        notifyDroneReady();
+                    }
+
                     currentEvent = null;
                 }
                 break;
         }
+    }
+
+    private void returnToOrigin() throws UnknownHostException {
+        System.out.println("Drone " + droneId + " is heading back to origin");
+
+        try {
+            Thread.sleep(3000); // simulate travel time
+        } catch (InterruptedException ignored) {}
+
+        System.out.println("Drone " + droneId + " reached origin. Refilling...");
+        currentLoad = MAXLOAD;           // refill tank
+
+        transitionState(Status.IDLE);    // now available
+        notifyDroneReady();              // notify Scheduler
     }
 
     /**
@@ -273,6 +298,11 @@ public class DroneSubsystem implements Runnable{
         int waterNeeded = waterRequired(currentEvent);
         int zoneId = currentEvent.getZone().getId();
 
+        // Do not drop more water than we currently have
+        if (waterNeeded > currentLoad) {
+            waterNeeded = currentLoad;
+        }
+
         /**
          * This uses the formula that was used in iteration 0.
          * The 10 comes from the previous iteration where it was the estimated duration of flow.
@@ -280,6 +310,8 @@ public class DroneSubsystem implements Runnable{
          */
         double timeLoad = ((currentLoad / 10.0) + TIME_TO_OPEN_NOZZLE);
         currentLoad = currentLoad - waterNeeded;
+        if (currentLoad < 0) currentLoad = 0;
+
         try {
             Thread.sleep((int)(timeLoad * 1000));
 
@@ -293,18 +325,6 @@ public class DroneSubsystem implements Runnable{
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-
-
-        try {
-            // DroneSubsystem returning (purple)
-            Thread.sleep(500);
-            Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
-            updateScheduler("DRONE_RETURNING|" + droneId + "|" + zoneId);
-            System.out.println("DroneSubsystem is heading back to origin");
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        }
-        currentEvent.getZone().fireExtinguished();//Change the status of the zone.
         updateScheduler("DRONE_CLEAR|" + droneId + "|" + zoneId);
         FireIncidentEvent event = currentEvent;
         handleEvent(Event.DROP_COMPLETE);
@@ -393,9 +413,12 @@ public class DroneSubsystem implements Runnable{
     }
     public static void main(String[] args) throws UnknownHostException {
         Zone.parseZones("Zone_File.csv");
-        Thread droneThread = new Thread(new DroneSubsystem(1));
-        droneThread.start();
 
+        for (int i=0; i<5; i++) {
+            DroneSubsystem drone = new DroneSubsystem();
+            Thread droneThread = new Thread(drone);
+            droneThread.start();
+        }
     }
 }
 
