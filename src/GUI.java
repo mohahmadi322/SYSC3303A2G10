@@ -53,22 +53,26 @@ public class GUI extends JFrame {
 
     /**
      * Adds or replaces a square in the specified zone.
-     * - If color == null → remove the square
-     * - If color != null → add/update the square
-     *
+     * - Fire stays until EXTINGUISHED
+     * - Drone stays until DRONE_CLEAR
+     * - Extinguished clears everything
      */
     public void updateOrReplaceSquare(int zoneId, String label, Color color) {
         List<JLabel> squares = zoneSquares.get(zoneId);
         if (squares == null) return;
 
-        // Remove any square with matching label
+        // FULL CLEAR only when color == null (EXTINGUISHED or DRONE_CLEAR)
+        if (color == null) {
+            squares.clear(); // remove fire + drone squares
+            updateZone(zoneId);
+            return;
+        }
+
+        // Remove only squares with the same label (fire replaces fire, drone replaces drone)
         squares.removeIf(sq -> sq.getText().equals(label));
 
-        // Add new square if color is provided
-        int middle = squares.size()/2;
-        if (color != null) {
-            squares.add(middle, createSquare(label, color));
-        }
+        // Otherwise, ADD the new square without removing others
+        squares.add(createSquare(label, color));
 
         updateZone(zoneId);
     }
