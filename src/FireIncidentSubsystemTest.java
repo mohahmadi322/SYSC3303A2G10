@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
-/**
+
 class FireIncidentSubsystemTest {
 
     private FireIncidentSubsystem subsystem;
@@ -18,6 +18,10 @@ class FireIncidentSubsystemTest {
 
         fakeScheduler = new Scheduler(new GUI()) {
             @Override
+            protected void initSockets() {
+
+            }
+
             public synchronized void newIncident(FireIncidentEvent fireIncidentEvent) {
                 // Do nothing for test
             }
@@ -28,7 +32,8 @@ class FireIncidentSubsystemTest {
         HashMap<Integer, Zone> zones = new HashMap<>();
         zones.put(1, new Zone(1, 0,0,10,10));
         zones.put(2, new Zone(2, 11,0,20,10));
-        subsystem.zones = zones;
+
+       // subsystem.zones = zones;
     }
 
     // Helper to get the 'time' field from FireIncidentEvent via reflection
@@ -43,6 +48,7 @@ class FireIncidentSubsystemTest {
         }
     }
 
+   /*
     @Test
     void testReadIncidentEvent() {
         String[] csvRow = {"12:30:00", "1", "FIRE_DETECTED", "Low"};
@@ -54,6 +60,7 @@ class FireIncidentSubsystemTest {
         assertEquals(FireIncidentEvent.Severity.Low, event.getSeverity());
         assertEquals(LocalTime.of(12,30,0), getTimeField(event));
     }
+    */
 
     @Test
     void testMultipleIncidentEvents() {
@@ -73,7 +80,7 @@ class FireIncidentSubsystemTest {
         assertEquals(LocalTime.of(9,45,0), getTimeField(events.get(1)));
         assertEquals(FireIncidentEvent.Severity.Moderate, events.get(1).getSeverity());
     }
-
+/**
     @Test
     void testFirePutoutUpdatesZone() {
         Zone testZone = new Zone(1,0,0,10,10);
@@ -84,8 +91,9 @@ class FireIncidentSubsystemTest {
         subsystem.firePutout(testZone);
         assertFalse(testZone.isFireActive());
     }
+    */
 }
 
-*/
+
 
 
