@@ -16,9 +16,6 @@ to extinguish fires detected across multiple geographic zones. The system includ
 1. Project Structure and File Descriptions
 ------------------------------------------------------------
 
-Main.java
----------
-Entry point of the application. Creates the GUI, Scheduler, and starts the simulation.
 
 GUI.java
 --------
@@ -37,6 +34,8 @@ Central controller of the system:
 • Tracks available drones
 • Assigns drones to events
 • Updates the GUI when fires start or are extinguished
+• Uses UDP to communicate at socket 5000
+
 
 DroneSubsystem.java
 ----------
@@ -46,6 +45,7 @@ Represents a single autonomous drone:
 • Drops water based on severity
 • Returns to origin
 • Updates GUI during each phase
+• Uses UDP to communicate with scheduler
 
 FireIncidentSubsystem.java
 --------------------------
@@ -54,6 +54,7 @@ Responsible for:
 • Creating FireIncidentEvent objects
 • Maintaining the list of zones
 • Marking fires as active or extinguished
+• Uses UDP to communicate with scheduler 
 
 FireIncidentEvent.java
 ----------------------
@@ -108,7 +109,8 @@ JUnit tests validating the DroneSubsystem class
 1. Install Java 17 or later.
 2. Open the project in IntelliJ IDEA (recommended).
 3. Build the project using IntelliJ 
-5. Run Main.java to start the simulation.
+5. Run the programs in the following order,
+   Scheduler -> DroneSubsystem -> FireIncidentSubsystem
 
 
 ------------------------------------------------------------
