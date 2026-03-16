@@ -1,7 +1,8 @@
-/*
+
 import org.junit.jupiter.api.Test;
 import java.awt.Color;
 import java.net.UnknownHostException;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -23,72 +24,109 @@ class DroneTest {
     // ----- Tests -----
 
     @Test
-    void testWaterRequiredLow() {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem( 1);
+    void testWaterRequiredLow() throws UnknownHostException {
 
-        Zone zone = new Zone(0, 0, 0, 1, 1);
-        FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Low);
+        DroneSubsystem drone = new DroneSubsystem();
+
+        Zone zone = new Zone(0,0,0,1,1);
+
+        FireIncidentEvent event =
+                new FireIncidentEvent(
+                        LocalTime.of(10,0),
+                        zone,
+                        FireIncidentEvent.Status.FIRE_DETECTED,
+                        FireIncidentEvent.Severity.Low
+                );
 
         assertEquals(10, drone.waterRequired(event));
     }
 
+
+
     @Test
-    void testWaterRequiredModerate() {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem(1);
+    void testWaterRequiredModerate() throws UnknownHostException {
+
+        DroneSubsystem drone = new DroneSubsystem();
 
         Zone zone = new Zone(1, 0, 0, 1, 1);
-        FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Moderate);
+
+        FireIncidentEvent event =
+                new FireIncidentEvent(
+                        LocalTime.of(10,0),
+                        zone,
+                        FireIncidentEvent.Status.FIRE_DETECTED,
+                        FireIncidentEvent.Severity.Moderate
+                );
 
         assertEquals(20, drone.waterRequired(event));
     }
 
+
     @Test
-    void testWaterRequiredHigh() {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem( 1);
+    void testWaterRequiredHigh() throws UnknownHostException {
+
+        DroneSubsystem drone = new DroneSubsystem();
 
         Zone zone = new Zone(2, 0, 0, 1, 1);
-        FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.High);
+
+        FireIncidentEvent event =
+                new FireIncidentEvent(
+                        LocalTime.of(10,0),
+                        zone,
+                        FireIncidentEvent.Status.FIRE_DETECTED,
+                        FireIncidentEvent.Severity.High
+                );
 
         assertEquals(30, drone.waterRequired(event));
     }
 
-    @Test
-    void testCalculateTime() {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem( 1);
 
-        Zone zone = new Zone(3, 0, 0, 3, 4); // distance = 5 units (3-4-5 triangle)
+    @Test
+    void testCalculateTime() throws UnknownHostException {
+
+        DroneSubsystem drone = new DroneSubsystem();
+
+        Zone zone = new Zone(3, 0, 0, 3, 4); // distance = 5
+
         double time = drone.calculateTime(zone);
 
         assertTrue(time > 0);
     }
 
+
     @Test
     void testEventAssignment() throws UnknownHostException {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem(1);
 
-        Zone zone = new Zone(4, 0, 0, 1, 1);
-        FireIncidentEvent event = new FireIncidentEvent(null, zone, FireIncidentEvent.Status.FIRE_DETECTED, FireIncidentEvent.Severity.Low);
+        DroneSubsystem drone = new DroneSubsystem();
+
+        Zone zone = new Zone(4,0,0,1,1);
+
+        FireIncidentEvent event =
+                new FireIncidentEvent(
+                        LocalTime.of(10,0),
+                        zone,
+                        FireIncidentEvent.Status.FIRE_DETECTED,
+                        FireIncidentEvent.Severity.Low
+                );
 
         drone.event(event);
 
-        assertNotNull(event); // event assigned
+        assertNotNull(event);
     }
 
+
     @Test
-    void testStop() {
+    void testStop() throws UnknownHostException {
         FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem( 1);
+        Scheduler scheduler = new Scheduler(gui) {
+            @Override
+            protected void initSockets() {
+
+            }
+        };
+        //DroneSubsystem drone = new DroneSubsystem( 1);
+        //Scheduler.DroneInfo drone = scheduler.new DroneInfo(1, 6001);
+        DroneSubsystem drone = new DroneSubsystem();
 
         drone.stop();
 
@@ -96,21 +134,6 @@ class DroneTest {
         assertTrue(true);
     }
 
-    @Test
-    void testWaitForEventWithStop() throws InterruptedException {
-        FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui);
-        DroneSubsystem drone = new DroneSubsystem( 1);
 
-        // run waitForEvent in a separate thread
-        Thread t = new Thread(() -> drone.waitForEvent());
-        t.start();
-
-        Thread.sleep(100); // let it start waiting
-        drone.stop();       // this should wake the waiting thread
-        t.join(500);
-
-        assertFalse(t.isAlive()); // thread finished successfully
-    }
 }
-*/
+

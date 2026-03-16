@@ -24,7 +24,7 @@ import java.util.*;
  * @author Zeina Mouhtadi
  * @date 2026-01-31
  */
-public class Scheduler implements Runnable{
+public abstract class Scheduler implements Runnable{
 
     //Queue of all fires waiting to be handled
     private Queue<FireIncidentEvent> fireQueue;
@@ -38,6 +38,8 @@ public class Scheduler implements Runnable{
 
     private volatile boolean running = true;//Flag to check system is running.
     private GUI gui;
+
+    protected abstract void initSockets();
 
     public enum Status{//The statuses of the drone.
         IDLE,
@@ -57,6 +59,7 @@ public class Scheduler implements Runnable{
      *  - current zone
      *  - water remaining
      */
+
 
     public class DroneInfo {
         public int id; // Drone ID (unique)
@@ -104,6 +107,14 @@ public class Scheduler implements Runnable{
             System.exit(1);
         }
     }
+    public Map<Integer, DroneInfo> getDrones(){
+        return drones;
+    }
+
+    public Queue<FireIncidentEvent> getFireQueue(){
+        return fireQueue;
+    }
+
     /**
      * Contains the main logic for communication with other programs.
      * @throws UnknownHostException
@@ -270,6 +281,14 @@ public class Scheduler implements Runnable{
         best.currentZone = fire.getZone().getId();
         best.targetZone = fire.getZone().getId();
     }
+
+    public DatagramSocket getSendSocket(){
+        return sendSocket;
+    }
+
+    public DatagramSocket getReceiveSocket(){
+        return receiveSocket;
+    }
 /**
  * SEND ASSIGN MESSAGE
  */
@@ -386,9 +405,15 @@ public class Scheduler implements Runnable{
      * Main method for Scheduler program.
      * @param args
      */
+
     public static void main(String[] args) {
         GUI gui = new GUI();
-        Scheduler scheduler = new Scheduler(gui);
+        Scheduler scheduler = new Scheduler(gui) {
+            @Override
+            protected void initSockets() {
+
+            }
+        };
         Thread schedulerThread = new Thread(scheduler);
         schedulerThread.start();
 
