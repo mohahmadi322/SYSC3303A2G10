@@ -19,10 +19,19 @@ public class FireIncidentEvent {
 
     }
 
+    public enum  FaultType{
+        NONE,
+        NOZZLE_JAMMED,
+        PACKET_LOSS,
+        STUCK
+
+    }
+
     private LocalTime time;//Time of the event
     private Status status;
     private Zone zone;//Zone object that the fire is at.
     private Severity severity;
+    private FaultType faultType;
 
     /**
      * Constructor of the class. Takes in the inputs from an Event csv file.
@@ -31,11 +40,12 @@ public class FireIncidentEvent {
      * @param status Status of the event.
      * @param severity Severity of the event.
      */
-    public FireIncidentEvent(LocalTime time,Zone zone,Status status, Severity severity){
+    public FireIncidentEvent(LocalTime time,Zone zone,Status status, Severity severity, FaultType faultType){
         this.time = time;
         this.status = status;
         this.severity = severity;
         this.zone = zone;
+        this.faultType = faultType;
     }
 
     /**
@@ -85,13 +95,13 @@ public class FireIncidentEvent {
 
     public String toString(){
         return "Time:"+ time.toString() + " | " + "Zone:" + zone + " | " + "Event type:"+
-                status + " | " + "Severity:" + severity;
+                status + " | " + "Severity:" + severity + " | " + "Fault Type:" + faultType;
     }
 
     public String serialize(){
         return "FIRE" + "|" + time.toString() + "|" +
                 zone.getId() + "|" +
                 status + "|" +
-                severity;
+                severity + "|" + faultType;
     }
 }
