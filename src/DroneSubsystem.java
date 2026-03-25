@@ -27,6 +27,9 @@ public class DroneSubsystem implements Runnable{
     private static double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
     private volatile boolean running = true;//To check if drone is running or not.
 
+    // Add fault flags
+    private boolean isStuck = false;
+    private boolean nozzleBroken = false;
     public enum Status{//The statuses of the drone.
         FLIGHT,
         APPROACHING,
@@ -85,6 +88,11 @@ public class DroneSubsystem implements Runnable{
         String msg = new String(receivePacket .getData(),0,receivePacket .getLength());
 
         String[] parts = msg.split("\\|");
+
+        // Parse for CSV drone faults
+        if(parts[0].equals("DRONE_STUCK")) isStuck = true;
+        if(parts[0].equals("NOZZLE_FAIL")) nozzleBroken = true;
+
         System.out.println(parts + "DroneSubsystem tests");
         if(parts[0].equals("ASSIGN")){
 
@@ -93,11 +101,16 @@ public class DroneSubsystem implements Runnable{
 
             Zone zone = Zone.findZoneById(zoneID);
 
+            FireIncidentEvent.FaultType fault = (parts.length > 5)
+                    ? FireIncidentEvent.FaultType.valueOf(parts[5])
+                    : FireIncidentEvent.FaultType.NONE;
+
             FireIncidentEvent e = new FireIncidentEvent(
                     time,
                     zone,
                     FireIncidentEvent.Status.valueOf(parts[3]),
-                    FireIncidentEvent.Severity.valueOf(parts[4])
+                    FireIncidentEvent.Severity.valueOf(parts[4]),
+                    fault
             );
 
             event(e);  // existing state machine
@@ -259,6 +272,13 @@ public class DroneSubsystem implements Runnable{
         System.out.println("DroneSubsystem status: " + status.toString());
         handleEvent(Event.ARRIVING_AT_ZONE);
 
+        // Stop drone movement if stuck
+        if(isStuck) {
+            System.out.println("Drone " + droneId + " is STUCK mid-flight");
+            updateScheduler("DRONE_STUCK|" + droneId);
+            return;
+        }
+
     }
 
     /**
@@ -301,6 +321,13 @@ public class DroneSubsystem implements Runnable{
         // Do not drop more water than we currently have
         if (waterNeeded > currentLoad) {
             waterNeeded = currentLoad;
+        }
+
+        // Stop water drop if nozzle fails
+        if (nozzleBroken) {
+            System.out.println("Drone " + droneId + " nozzle FAILED");
+            updateScheduler("NOZZLE_FAIL|" + droneId);
+            return currentEvent; // skip drop
         }
 
         /**

@@ -23,7 +23,9 @@ public class FireIncidentEvent {
         NONE,
         NOZZLE_JAMMED,
         PACKET_LOSS,
-        STUCK
+        STUCK,
+
+        NOZZLE_FAIL
 
     }
 
@@ -103,5 +105,10 @@ public class FireIncidentEvent {
                 zone.getId() + "|" +
                 status + "|" +
                 severity + "|" + faultType;
+    }
+
+    // Return drone fault type
+    public FaultType getFaultType() {
+        return faultType;
     }
 }
