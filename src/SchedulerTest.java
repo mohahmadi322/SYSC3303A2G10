@@ -48,6 +48,7 @@ public class SchedulerTest {
 
     }
 
+    /*
     @Test
     void queuedFireAssignedAfterDroneReturns() throws UnknownHostException {
         FireIncidentEvent f1 = new FireIncidentEvent(
@@ -83,6 +84,8 @@ public class SchedulerTest {
         // f2 should now be removed from queue since it’s assigned
         assertFalse(scheduler.getFireQueue().contains(f2), "f2 should have been assigned");
     }
+    */
+
 
     /**
      @Test

@@ -70,6 +70,11 @@ public abstract class Scheduler implements Runnable{
         public int agentCapacity = 15;
         public int agentRemaining = 15;
 
+        // For handling drone faults
+        public boolean isFaulty = false;
+        public boolean isHardFault = false;
+        public long dispatchTime = 0; // for timeout
+
         public DroneInfo(int id, int port) {
             this.id = id;
             this.port = port;
@@ -136,6 +141,7 @@ public abstract class Scheduler implements Runnable{
              * Add fire to queue and display red severity square.
              */
             case "FIRE":
+
                 System.out.println("Scheduler received: " + msg);
 
                 LocalTime time = LocalTime.parse(parts[1]);
@@ -147,7 +153,8 @@ public abstract class Scheduler implements Runnable{
                         time,
                         zone,
                         FireIncidentEvent.Status.valueOf(parts[3]),
-                        FireIncidentEvent.Severity.valueOf(parts[4])
+                        FireIncidentEvent.Severity.valueOf(parts[4]),
+                        FireIncidentEvent.FaultType.valueOf(parts[5])
                 );
 
                 activeEventsByZone.put(zoneID, event);
@@ -262,6 +269,7 @@ public abstract class Scheduler implements Runnable{
 
         for (DroneInfo d : drones.values()) {
             if (d.state != DroneInfo.DroneState.IDLE) continue;
+            if(d.isFaulty) continue; // Prevent faulty drones from being re-assigned
 
             int score = computeScore(d, fire);
 
@@ -271,9 +279,27 @@ public abstract class Scheduler implements Runnable{
             }
         }
 
-        if (best == null) return;
+        // Check if best is null before using
+        if (best == null) {
+            System.out.println("No available drones for zone " + fire.getZone().getId() + ". Fire remains in queue.");
+            return; // skip assignment for now
+        }
+
+        // Start the timer when a Drone is assigned
+        best.dispatchTime = System.currentTimeMillis();
 
         fireQueue.remove(fire);
+
+        if (fire.getFaultType() == FireIncidentEvent.FaultType.NOZZLE_FAIL) {
+            best.isFaulty = true;
+            best.isHardFault = true;
+            System.out.println("HARD FAULT: Drone " + best.id + " nozzle failure");
+
+            return; // don't assign this drone
+        }
+
+        // set dispatch time
+        best.dispatchTime = System.currentTimeMillis();
 
         sendAssign(best, fire);
 
@@ -384,12 +410,36 @@ public abstract class Scheduler implements Runnable{
         };
     }
 
+    /**
+     * Check for timeouts for detecting stuck drones
+     */
+    private void checkForTimeouts() {
+        long now = System.currentTimeMillis();
+        for (DroneInfo d : drones.values()) {
+            if(d.state != DroneInfo.DroneState.IDLE && !d.isFaulty) {
+                long elapsed = now - d.dispatchTime;
+                if(elapsed > 10000) { // 10 sec timeout
+                    System.out.println("FAULT: Drone " + d.id + " timed out");
+                    d.isFaulty = true;
+                    d.state = DroneInfo.DroneState.IDLE;
+
+                    // reassign its fire
+                    if(d.targetZone != -1) {
+                        FireIncidentEvent e = activeEventsByZone.get(d.targetZone);
+                        if(e != null) fireQueue.add(e);
+                    }
+                }
+            }
+        }
+    }
+
 
     /**
      * While program is running handle events. Once program is no longer running call the drones to stop.
      */
     @Override
     public void run() {
+        checkForTimeouts(); // Checking for timeouts so we can detect stuck drones
         Zone.parseZones("Zone_File.csv");
         while (running) {
                 try {
