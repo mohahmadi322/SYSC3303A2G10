@@ -25,6 +25,8 @@ public class DroneSubsystem implements Runnable{
     private  static double TAKE_OFF_TIME = 6;// Take off time of the drone. Value is from iteration 0.
     private static double LANDING_TIME = 4;//Landing time of the drone. Value is from iteration 0.
     private static double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
+
+
     private volatile boolean running = true;//To check if drone is running or not.
 
     // Add fault flags
@@ -35,7 +37,8 @@ public class DroneSubsystem implements Runnable{
         APPROACHING,
         DROPPING_AGENT,
         RETURNING,
-        IDLE
+        IDLE,
+        FAULTED
     }
 
     public enum Event {
@@ -55,6 +58,11 @@ public class DroneSubsystem implements Runnable{
     private final int droneId;
     private DatagramPacket sendPacket, receivePacket;
     private DatagramSocket sendReceiveSocket;
+    private FireIncidentEvent.FaultType injectedFault =
+            FireIncidentEvent.FaultType.NONE;
+
+    private boolean packetLossActive = false;
+    private boolean packetLostOnce = false;
 
     /**
      * Constructor for drone. Sets the status of the drone to idle.
@@ -88,12 +96,13 @@ public class DroneSubsystem implements Runnable{
         String msg = new String(receivePacket .getData(),0,receivePacket .getLength());
 
         String[] parts = msg.split("\\|");
+        System.out.println("[Drone " + droneId + "] Received: " + msg);
+
 
         // Parse for CSV drone faults
         if(parts[0].equals("DRONE_STUCK")) isStuck = true;
         if(parts[0].equals("NOZZLE_FAIL")) nozzleBroken = true;
 
-        System.out.println(parts + "DroneSubsystem tests");
         if(parts[0].equals("ASSIGN")){
 
             LocalTime time = LocalTime.parse(parts[1]);
@@ -101,9 +110,21 @@ public class DroneSubsystem implements Runnable{
 
             Zone zone = Zone.findZoneById(zoneID);
 
+
             FireIncidentEvent.FaultType fault = (parts.length > 5)
                     ? FireIncidentEvent.FaultType.valueOf(parts[5])
                     : FireIncidentEvent.FaultType.NONE;
+            // Inject fault based on event
+            if (fault == FireIncidentEvent.FaultType.STUCK) {
+                isStuck = true;
+            }
+            if (fault == FireIncidentEvent.FaultType.NOZZLE_FAIL ||
+                    fault == FireIncidentEvent.FaultType.NOZZLE_JAMMED) {
+                nozzleBroken = true;
+            }
+            if (fault == FireIncidentEvent.FaultType.PACKET_LOSS) {
+                packetLossActive = true;
+            }
 
             FireIncidentEvent e = new FireIncidentEvent(
                     time,
@@ -150,6 +171,12 @@ public class DroneSubsystem implements Runnable{
                     dropWater();
                 }
                 break;
+            case RETURNING:
+                if(e == Event.LANDED){
+                    transitionState(Status.DROPPING_AGENT);
+                    dropWater();
+                }
+                break;
             case DROPPING_AGENT:
                 if(e == Event.DROP_COMPLETE){
                     firePutOut();
@@ -164,12 +191,18 @@ public class DroneSubsystem implements Runnable{
                         notifyDroneReady();
                     }
 
-                    currentEvent = null;
                 }
+
+                break;
+            default:
                 break;
         }
     }
 
+    /**
+     * Simulates drone heading back to point of origin.
+     * @throws UnknownHostException
+     */
     private void returnToOrigin() throws UnknownHostException {
         System.out.println("Drone " + droneId + " is heading back to origin");
 
@@ -259,26 +292,23 @@ public class DroneSubsystem implements Runnable{
      */
     public void travelToZone() throws UnknownHostException {
         int zoneId = currentEvent.getZone().getId();
-        String msg = "DroneSubsystem " + droneId + " is traveling to zone " + currentEvent.getZone();
-        System.out.println(msg);
-
+        System.out.println("[Drone " + droneId + "] Travelling to zone " + zoneId);
+        updateScheduler("DRONE_OUTBOUND|" + droneId + "|" + zoneId);
         try {
-            Thread.sleep((int)(TAKE_OFF_TIME * 1000));
-            updateScheduler("DRONE_OUTBOUND|" + droneId + "|" + zoneId);
-
+            Thread.sleep((int) (TAKE_OFF_TIME * 1000));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        System.out.println("DroneSubsystem status: " + status.toString());
-        handleEvent(Event.ARRIVING_AT_ZONE);
 
-        // Stop drone movement if stuck
-        if(isStuck) {
-            System.out.println("Drone " + droneId + " is STUCK mid-flight");
-            updateScheduler("DRONE_STUCK|" + droneId);
+        if (isStuck) {
+            isStuck = false;
+            System.out.println("[Drone " + droneId + "] STUCK mid-flight — reporting fault.");
+            updateSchedulerCritical("DRONE_STUCK|" + droneId + "|" + currentEvent.getZone().getId());
+            transitionState(Status.FAULTED);
+            transitionState(Status.IDLE);
             return;
         }
-
+        handleEvent(Event.ARRIVING_AT_ZONE);
     }
 
     /**
@@ -286,7 +316,6 @@ public class DroneSubsystem implements Runnable{
      * @return Time it took to get to zone.
      * @throws UnknownHostException
      */
-
     public double approachingZone() throws UnknownHostException {
         int zoneId = currentEvent.getZone().getId();
         try {
@@ -315,63 +344,40 @@ public class DroneSubsystem implements Runnable{
      */
     public synchronized FireIncidentEvent dropWater() throws UnknownHostException {
 
-        int waterNeeded = waterRequired(currentEvent);
         int zoneId = currentEvent.getZone().getId();
-
-        // Do not drop more water than we currently have
-        if (waterNeeded > currentLoad) {
-            waterNeeded = currentLoad;
-        }
-
-        // Stop water drop if nozzle fails
+        //Simulate broken nozzle and notify scheduler
         if (nozzleBroken) {
-            System.out.println("Drone " + droneId + " nozzle FAILED");
-            updateScheduler("NOZZLE_FAIL|" + droneId);
-            return currentEvent; // skip drop
+            nozzleBroken = false;
+            System.out.println("[Drone " + droneId + "] HARD FAULT — nozzle broken.");
+            updateSchedulerCritical("NOZZLE_FAIL|" + droneId + "|" + currentEvent.getZone().getId()); // ADDED zone            transitionState(Status.FAULTED);
+            transitionState(Status.FAULTED);
+            return currentEvent;
         }
 
-        /**
-         * This uses the formula that was used in iteration 0.
-         * The 10 comes from the previous iteration where it was the estimated duration of flow.
-         * This calculates the time it would take for the water to fall on the fire.
-         */
-        double timeLoad = ((currentLoad / 10.0) + TIME_TO_OPEN_NOZZLE);
-        currentLoad = currentLoad - waterNeeded;
+        int waterNeeded = waterRequired(currentEvent);
+        if (waterNeeded > currentLoad) waterNeeded = currentLoad;
+
+        double timeLoad = (currentLoad / 10.0) + TIME_TO_OPEN_NOZZLE;
+        currentLoad -= waterNeeded;
         if (currentLoad < 0) currentLoad = 0;
 
         try {
-            Thread.sleep((int)(timeLoad * 1000));
-
-            String msg = "DroneSubsystem " + droneId + " dropped " + waterNeeded + "L at zone " + currentEvent.getZone();
-            System.out.println(msg);
+            Thread.sleep((int) (timeLoad * 1000));
             updateScheduler("DRONE_DROPPING|" + droneId + "|" + zoneId);
-            msg = "DroneSubsystem has " + currentLoad + " water left in the tank.";
-            System.out.println(msg);
+            System.out.println("[Drone " + droneId + "] Dropped " + waterNeeded + "L at zone " + zoneId
+                    + ". Remaining: " + currentLoad + "L");
             Thread.sleep(500);
-
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+
         updateScheduler("DRONE_CLEAR|" + droneId + "|" + zoneId);
         FireIncidentEvent event = currentEvent;
         handleEvent(Event.DROP_COMPLETE);
-
         return event;
     }
 
-    /**
-     * Wait for an event before doing anything.
-     */
-    public synchronized void waitForEvent(){
-        while (currentEvent == null && running) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
-    }
+
 
     /**
      * Stop the program from running.
@@ -382,30 +388,45 @@ public class DroneSubsystem implements Runnable{
     }
 
     /**
-     * Getter method for the drone ID.
-     * @return ID of drone object.
-     */
-    public int getID(){
-        return droneId;
-    }
-
-    /**
      * Sends packet to scheduler with messages of current drone status.
      * @param msg
      */
     private void updateScheduler(String msg) {
         try {
+            // only for packet loss events, simulate drone retrying sending packet.
+            if (packetLossActive && !packetLostOnce) {
+                packetLostOnce = true;
+                System.out.println("[Drone " + droneId + "] PACKET LOSS simulated (dropping first message)");
+                updateSchedulerCritical("PACKET_LOST|" + droneId + "|" + currentEvent.getZone().getId());
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(3000); // retry delay
+                        System.out.println("[Drone " + droneId + "] RETRYING message...");
+
+                        updateSchedulerCritical(msg);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+
+                return;
+            }
+
+            updateSchedulerCritical(msg);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    /**
+     * Critical messages, never dropped (faults, extinguished, ready).
+     */
+    private void updateSchedulerCritical(String msg) {
+        try {
             byte[] data = msg.getBytes();
-
-            sendPacket = new DatagramPacket(
-                    data,
-                    data.length,
-                    InetAddress.getLocalHost(),
-                    5000   // scheduler port
-            );
-
+            sendPacket = new DatagramPacket(data, data.length, InetAddress.getLocalHost(), 5000);
             sendReceiveSocket.send(sendPacket);
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -428,6 +449,10 @@ public class DroneSubsystem implements Runnable{
         }
     }
 
+    /**
+     * Notify scheduler that drone is ready.
+     * @throws UnknownHostException
+     */
     private void notifyDroneReady() throws UnknownHostException {
         String msg = "DRONE_READY|"+ droneId;
         byte[] data = msg.getBytes();
@@ -448,4 +473,3 @@ public class DroneSubsystem implements Runnable{
         }
     }
 }
-

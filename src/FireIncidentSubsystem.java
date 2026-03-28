@@ -89,6 +89,11 @@ public class FireIncidentSubsystem implements Runnable {
         notifyAll();
     }
 
+    /**
+     * Send fire incident events to scheduler.
+     * @param e Event to be sent to scheduler.
+     * @throws UnknownHostException
+     */
     private void sendFireIncident(FireIncidentEvent e) throws UnknownHostException {
         String message = e.serialize();
 

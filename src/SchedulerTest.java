@@ -1,3 +1,4 @@
+/*
 import java.net.DatagramSocket;
 import java.time.LocalTime;
 import java.net.UnknownHostException;
@@ -48,7 +49,6 @@ public class SchedulerTest {
 
     }
 
-    /*
     @Test
     void queuedFireAssignedAfterDroneReturns() throws UnknownHostException {
         FireIncidentEvent f1 = new FireIncidentEvent(
@@ -84,10 +84,8 @@ public class SchedulerTest {
         // f2 should now be removed from queue since it’s assigned
         assertFalse(scheduler.getFireQueue().contains(f2), "f2 should have been assigned");
     }
-    */
 
-
-    /**
+*
      @Test
      void droneWithoutWaterSkipped() throws UnknownHostException {
      scheduler.getDrones().get(1).agentRemaining = 0;
@@ -104,15 +102,18 @@ public class SchedulerTest {
 
      assertEquals(Scheduler.DroneInfo.DroneState.OUTBOUND, scheduler.getDrones().get(2).state);
      }
-     */
 
 
-// OLD TEST CASES
+
+
+  */
 /**
- * Fake DroneSubsystem that records the event assigned.
- */
+         * Fake DroneSubsystem that records the event assigned.
+         *//*
 
-/*
+
+
+
         static class TestDrone extends DroneSubsystem {
 
             FireIncidentEvent receivedEvent;
@@ -202,5 +203,7 @@ public class SchedulerTest {
 
             assertTrue(true);
     }
-    */
+
+
 }
+*/

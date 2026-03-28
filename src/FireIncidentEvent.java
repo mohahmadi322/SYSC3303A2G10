@@ -1,4 +1,3 @@
-
 import java.time.LocalTime;
 
 /**
@@ -100,6 +99,10 @@ public class FireIncidentEvent {
                 status + " | " + "Severity:" + severity + " | " + "Fault Type:" + faultType;
     }
 
+    /**
+     * Serializes the object for packets.
+     * @return String representing event object.
+     */
     public String serialize(){
         return "FIRE" + "|" + time.toString() + "|" +
                 zone.getId() + "|" +
