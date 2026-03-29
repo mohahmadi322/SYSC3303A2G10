@@ -1,4 +1,3 @@
-/*
 
 import org.junit.jupiter.api.Test;
 import java.awt.Color;
@@ -126,7 +125,7 @@ class DroneTest {
     void testStop() throws UnknownHostException {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui) {
-            @Override
+
             protected void initSockets() {
 
             }
@@ -143,5 +142,3 @@ class DroneTest {
 
 
 }
-
-*/

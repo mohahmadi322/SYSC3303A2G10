@@ -523,6 +523,22 @@ public abstract class Scheduler implements Runnable{
         }
     }
 
+    // Allow tests to inspect fire queue
+    protected Queue<FireIncidentEvent> getFireQueue() {
+        return fireQueue;
+    }
+
+    // Allow tests to inspect drones
+    protected Map<Integer, DroneInfo> getDrones() {
+        return drones;
+    }
+
+    protected Map<Integer, FireIncidentEvent> getActiveEvents() {
+        return activeEventsByZone;
+    }
+
+    protected DatagramSocket getSendSocket() { return sendSocket; }
+    protected DatagramSocket getReceiveSocket() { return receiveSocket; }
 
     /**
      * While program is running handle events. Once program is no longer running call the drones to stop.
