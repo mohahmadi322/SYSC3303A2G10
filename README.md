@@ -157,14 +157,13 @@ Tests can be run via IntelliJ
    Leena Ford 
 ------------------------------------------------------------
 
-Team Responsibilities – Iteration 1
+Team Responsibilities – Iteration 4
 -----------------------------------
-•Zeina: GUI design and integration, readme file
-• Mohammad: Implemented the core code structure for the Scheduler, DroneSubsystem, and Fire Incident Subsystem. 
-Developed the event parsing and communication logic
-• Leena: sequence and class diagrams
+•Zeina: Updated tests, Diagrams and readme file
+• Mohammad: Updated GUI
+• Leena: Implemented Fault handling
 
 
 Versioning
 ----------
-This submission corresponds to Iteration 1.
+This submission corresponds to Iteration 4.
