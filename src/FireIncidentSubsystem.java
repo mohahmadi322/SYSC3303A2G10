@@ -49,7 +49,8 @@ public class FireIncidentSubsystem implements Runnable {
         int zoneID = Integer.parseInt(values[1].trim());//Get the zone from the second column.
         FireIncidentEvent.Status status= FireIncidentEvent.Status.valueOf(values[2]);//Get the status of the fire from the third column.
         FireIncidentEvent.Severity severity= FireIncidentEvent.Severity.valueOf(values[3]);//Get the severity from the fourth column.
-        return new FireIncidentEvent(time,Zone.zonesHash.get(zoneID),status,severity);//Return a FireIncidentEvent using the parameters from values.
+        FireIncidentEvent.FaultType faultType= FireIncidentEvent.FaultType.valueOf(values[4]);//Get the severity from the fourth column.
+        return new FireIncidentEvent(time,Zone.zonesHash.get(zoneID),status,severity, faultType);//Return a FireIncidentEvent using the parameters from values.
     }
 
 
@@ -88,6 +89,11 @@ public class FireIncidentSubsystem implements Runnable {
         notifyAll();
     }
 
+    /**
+     * Send fire incident events to scheduler.
+     * @param e Event to be sent to scheduler.
+     * @throws UnknownHostException
+     */
     private void sendFireIncident(FireIncidentEvent e) throws UnknownHostException {
         String message = e.serialize();
 

@@ -29,6 +29,7 @@ public class GUI extends JFrame {
         add(createLegendPanel(), BorderLayout.EAST); // Color legend
         add(createLogPanel(), BorderLayout.SOUTH); // System logs
 
+
         // Initialize square lists for each zone
         for (int i = 1; i <= 9; i++) {
             zoneSquares.put(i, new ArrayList<>());
@@ -61,17 +62,37 @@ public class GUI extends JFrame {
         List<JLabel> squares = zoneSquares.get(zoneId);
         if (squares == null) return;
 
-        // FULL CLEAR only when color == null (EXTINGUISHED or DRONE_CLEAR)
-        if (color == null) {
-            squares.clear(); // remove fire + drone squares
+        // FULL CLEAR (EXTINGUISHED)
+        if (color == null && label.equals("CLEAR_ALL")) {
+            squares.clear();
             updateZone(zoneId);
             return;
         }
 
-        // Remove only squares with the same label (fire replaces fire, drone replaces drone)
-        squares.removeIf(sq -> sq.getText().equals(label));
+        // Remove ONLY drone squares
+        if (color == null && label.equals("CLEAR_DRONE")) {
+            squares.removeIf(sq -> sq.getText().startsWith("D("));
+            updateZone(zoneId);
+            return;
+        }
+        if (color == null && label.equals("CLEAR_FIRE")) {
+            squares.removeIf(sq ->
+                    sq.getText().equals("H") ||
+                            sq.getText().equals("M") ||
+                            sq.getText().equals("L"));
+            updateZone(zoneId);
+            return;
+        }
+        if (color == null && label.equals("CLEAR_FAULT")) {
+            squares.removeIf(sq -> sq.getText().startsWith("F("));
+            squares.removeIf(sq -> sq.getText().startsWith("S("));
+            updateZone(zoneId);
+            return;
+        }
 
-        // Otherwise, ADD the new square without removing others
+
+        // Normal replace behavior
+        squares.removeIf(sq -> sq.getText().equals(label));
         squares.add(createSquare(label, color));
 
         updateZone(zoneId);
@@ -129,11 +150,18 @@ public class GUI extends JFrame {
         legend.setLayout(new BoxLayout(legend, BoxLayout.Y_AXIS));
         legend.setBorder(BorderFactory.createTitledBorder("Legend"));
 
-        legend.add(createLegendItem(Color.RED, "Active fire (H/M/L)"));
-        legend.add(createLegendItem(Color.GREEN, "Extinguished fire"));
-        legend.add(createLegendItem(Color.YELLOW, "DroneSubsystem outbound"));
-        legend.add(createLegendItem(new Color(0,128,0), "DroneSubsystem extinguishing"));
-        legend.add(createLegendItem(new Color(128,0,128), "DroneSubsystem returning"));
+        legend.add(createLegendItem(Color.RED,              "Active fire (H/M/L)"));
+        //legend.add(createLegendItem(Color.GREEN,            "Fire extinguished"));
+        legend.add(createLegendItem(Color.YELLOW,           "Drone outbound"));
+        legend.add(createLegendItem(Color.ORANGE,           "Drone approaching"));
+        legend.add(createLegendItem(Color.PINK,           "Packet Loss"));
+
+        legend.add(createLegendItem(new Color(0, 128, 0),   "Drone dropping agent"));
+        legend.add(createLegendItem(new Color(128, 0, 128), "Drone returning"));
+
+        legend.add(new JSeparator());
+        legend.add(createLegendItem(Color.BLUE,    "Stuck — soft fault (rerouted)"));
+        legend.add(createLegendItem(Color.MAGENTA, "HARD FAULT — (drone offline)"));
 
         return legend;
     }

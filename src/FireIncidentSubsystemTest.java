@@ -15,25 +15,11 @@ class FireIncidentSubsystemTest {
 
     @BeforeEach
     void setup() {
-
-        fakeScheduler = new Scheduler(new GUI()) {
-            @Override
-            protected void initSockets() {
-
-            }
-
-            public synchronized void newIncident(FireIncidentEvent fireIncidentEvent) {
-                // Do nothing for test
-            }
-        };
         subsystem = new FireIncidentSubsystem();
 
-        // Prepare zones map
-        HashMap<Integer, Zone> zones = new HashMap<>();
-        zones.put(1, new Zone(1, 0,0,10,10));
-        zones.put(2, new Zone(2, 11,0,20,10));
-
-       // subsystem.zones = zones;
+        Zone.zonesHash = new HashMap<>();
+        Zone.zonesHash.put(1, new Zone(1,0,0,10,10));
+        Zone.zonesHash.put(2, new Zone(2,11,0,20,10));
     }
 
     // Helper to get the 'time' field from FireIncidentEvent via reflection
@@ -48,24 +34,28 @@ class FireIncidentSubsystemTest {
         }
     }
 
-   /*
     @Test
     void testReadIncidentEvent() {
-        String[] csvRow = {"12:30:00", "1", "FIRE_DETECTED", "Low"};
+        // Prepare zones
+        Zone.zonesHash = new HashMap<>();
+        Zone.zonesHash.put(1, new Zone(1,0,0,10,10));
+
+        String[] csvRow = {"12:30:00", "1", "FIRE_DETECTED", "Low", "NONE"};
 
         FireIncidentEvent event = subsystem.readIncidentEvent(csvRow);
 
-        assertEquals(subsystem.zones.get(1), event.getZone());
+        assertEquals(Zone.zonesHash.get(1), event.getZone());
         assertEquals(FireIncidentEvent.Status.FIRE_DETECTED, event.getStatus());
         assertEquals(FireIncidentEvent.Severity.Low, event.getSeverity());
         assertEquals(LocalTime.of(12,30,0), getTimeField(event));
     }
-    */
+
+
 
     @Test
     void testMultipleIncidentEvents() {
-        String[] row1 = {"08:15:30", "1", "FIRE_DETECTED", "High"};
-        String[] row2 = {"09:45:00", "2", "FIRE_DETECTED", "Moderate"};
+        String[] row1 = {"08:15:30", "1", "FIRE_DETECTED", "High", "NONE"};
+        String[] row2 = {"09:45:00", "2", "FIRE_DETECTED", "Moderate", "NONE"};
 
         FireIncidentEvent e1 = subsystem.readIncidentEvent(row1);
         FireIncidentEvent e2 = subsystem.readIncidentEvent(row2);
@@ -80,7 +70,7 @@ class FireIncidentSubsystemTest {
         assertEquals(LocalTime.of(9,45,0), getTimeField(events.get(1)));
         assertEquals(FireIncidentEvent.Severity.Moderate, events.get(1).getSeverity());
     }
-/**
+
     @Test
     void testFirePutoutUpdatesZone() {
         Zone testZone = new Zone(1,0,0,10,10);
@@ -91,9 +81,7 @@ class FireIncidentSubsystemTest {
         subsystem.firePutout(testZone);
         assertFalse(testZone.isFireActive());
     }
-    */
+
+
 }
-
-
-
 

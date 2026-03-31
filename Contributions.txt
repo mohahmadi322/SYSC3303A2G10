@@ -38,3 +38,20 @@ Leena Ford 101229281:
 Test Classes
 Logic fixes in code
 README
+
+
+Iteration 3:
+
+Mohammad Ahmadi 101267874:
+
+UDP logic
+State machines
+
+Zeina Mouhtadi 1011696385:
+
+Scheduling logic
+
+Leena Ford 101229281:
+
+UML 
+Test classes

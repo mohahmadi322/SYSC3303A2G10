@@ -35,7 +35,8 @@ class DroneTest {
                         LocalTime.of(10,0),
                         zone,
                         FireIncidentEvent.Status.FIRE_DETECTED,
-                        FireIncidentEvent.Severity.Low
+                        FireIncidentEvent.Severity.Low,
+                        FireIncidentEvent.FaultType.NONE
                 );
 
         assertEquals(10, drone.waterRequired(event));
@@ -48,6 +49,7 @@ class DroneTest {
 
         DroneSubsystem drone = new DroneSubsystem();
 
+
         Zone zone = new Zone(1, 0, 0, 1, 1);
 
         FireIncidentEvent event =
@@ -55,7 +57,8 @@ class DroneTest {
                         LocalTime.of(10,0),
                         zone,
                         FireIncidentEvent.Status.FIRE_DETECTED,
-                        FireIncidentEvent.Severity.Moderate
+                        FireIncidentEvent.Severity.Moderate,
+                        FireIncidentEvent.FaultType.NONE
                 );
 
         assertEquals(20, drone.waterRequired(event));
@@ -74,7 +77,9 @@ class DroneTest {
                         LocalTime.of(10,0),
                         zone,
                         FireIncidentEvent.Status.FIRE_DETECTED,
-                        FireIncidentEvent.Severity.High
+                        FireIncidentEvent.Severity.High,
+                        FireIncidentEvent.FaultType.NONE
+
                 );
 
         assertEquals(30, drone.waterRequired(event));
@@ -106,7 +111,8 @@ class DroneTest {
                         LocalTime.of(10,0),
                         zone,
                         FireIncidentEvent.Status.FIRE_DETECTED,
-                        FireIncidentEvent.Severity.Low
+                        FireIncidentEvent.Severity.Low,
+                        FireIncidentEvent.FaultType.NONE
                 );
 
         drone.event(event);
@@ -119,7 +125,7 @@ class DroneTest {
     void testStop() throws UnknownHostException {
         FakeGUI gui = new FakeGUI();
         Scheduler scheduler = new Scheduler(gui) {
-            @Override
+
             protected void initSockets() {
 
             }
@@ -136,4 +142,3 @@ class DroneTest {
 
 
 }
-
