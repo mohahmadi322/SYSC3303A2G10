@@ -122,11 +122,23 @@ public class FireIncidentSubsystem implements Runnable {
     @Override
     public void run() {
         incidents = parseIncidentFiles("Event_File.csv");
-        for(FireIncidentEvent e: incidents){
-            try {
-                sendFireIncident(e);
-            } catch (UnknownHostException ex) {
-                throw new RuntimeException(ex);
+
+        while (true) {
+            synchronized (this) {
+                while (incidents.isEmpty()) {
+                    try {
+                        wait(); // sleep until new event arrives
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                FireIncidentEvent e = incidents.remove(0);
+                try {
+                    sendFireIncident(e);
+                } catch (UnknownHostException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
     }
