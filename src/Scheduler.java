@@ -26,14 +26,17 @@ import java.util.*;
  */
 public abstract class Scheduler implements Runnable{
 
+    private static final Analyzer analyzer = new Analyzer();
+    private static final Logger logger = new Logger(500);
+
     //Queue of all fires waiting to be handled
-    private Queue<FireIncidentEvent> fireQueue;
+    private static Queue<FireIncidentEvent> fireQueue;
 
     // stores all drones known to the scheduler
     private Map<Integer, DroneInfo> drones;
 
     // Active fires by zone
-    private Map<Integer, FireIncidentEvent> activeEventsByZone;
+    private static Map<Integer, FireIncidentEvent> activeEventsByZone;
 
     private volatile boolean running = true;//Flag to check system is running.
     private GUI gui;
@@ -150,6 +153,7 @@ public abstract class Scheduler implements Runnable{
                         gui.updateOrReplaceSquare(zoneID,
                                 GUI.severityLetter(event.getSeverity()), Color.RED));
 
+                logger.fireReceived(zoneID);
                 assignDrone();
                 break;
             /**
@@ -176,7 +180,12 @@ public abstract class Scheduler implements Runnable{
                     drone.currentZone = -1;
                     drone.targetZone  = -1;
                 }
+                if (activeEventsByZone.isEmpty() && fireQueue.isEmpty()) {
+                    logger.shutdown();
+                    new Analyzer().run();
+                }
                 assignDrone();
+                logger.fireExtinguished(droneID2, z);
                 break;
 
             case "DRONE_OUTBOUND":
@@ -209,6 +218,7 @@ public abstract class Scheduler implements Runnable{
             case "DRONE_READY":
 
                 droneId = Integer.parseInt(parts[1]);
+                logger.droneIdle(droneId);
 
                 drones.putIfAbsent(droneId, new DroneInfo(droneId, 6000 + droneId));
 
@@ -219,11 +229,11 @@ public abstract class Scheduler implements Runnable{
                     );
                     break;
                 }
-
                 d.state          = DroneInfo.DroneState.IDLE;
                 d.agentRemaining = d.agentCapacity;
                 SwingUtilities.invokeLater(() ->
                         gui.log("[" + LocalTime.now() + "] Drone " + droneId + " is ready."));
+
                 assignDrone();
                 break;
             case "DRONE_STUCK":
@@ -239,7 +249,6 @@ public abstract class Scheduler implements Runnable{
                 System.out.println("[Scheduler] Drone " + stuckId + " STUCK at zone " + stuckZone);
                 int finalStuckZone1 = stuckZone;
 
-                System.out.println("DEBUG: Fault at zone = " + finalStuckZone1);
                 gui.updateOrReplaceSquare(finalStuckZone1, "CLEAR_DRONE", null);
                 gui.updateOrReplaceSquare(finalStuckZone1, "S(" + stuckId + ")", Color.BLUE);
 
@@ -281,7 +290,6 @@ public abstract class Scheduler implements Runnable{
                 failed.state       = DroneInfo.DroneState.IDLE;
 
 
-                System.out.println("DEBUG: Fault at zone = " + failZone);
                 gui.updateOrReplaceSquare(failZone, "CLEAR_DRONE", null);
 
                 gui.updateOrReplaceSquare(failZone, "F(" + failedId + ")", Color.MAGENTA);
@@ -325,6 +333,7 @@ public abstract class Scheduler implements Runnable{
         }
     }
 
+
     // Updates the GUI to show the drone's current state.
     private void updateDrone(String[] parts, DroneInfo.DroneState state, Color color) {
         int droneId = Integer.parseInt(parts[1]);
@@ -333,7 +342,12 @@ public abstract class Scheduler implements Runnable{
         DroneInfo info = drones.get(droneId);
         info.state = state;
         info.currentZone = zoneId;
+        if (state == DroneInfo.DroneState.APPROACHING) {
+            logger.droneArrived(droneId, zoneId);
 
+
+        }
+        logger.droneBusy(droneId);
         // Update GUI to show drone at this zone
         SwingUtilities.invokeLater(() ->
                 gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", color));
@@ -380,6 +394,7 @@ public abstract class Scheduler implements Runnable{
         best.state = DroneInfo.DroneState.OUTBOUND;
         best.currentZone = fire.getZone().getId();
         best.targetZone = fire.getZone().getId();
+        logger.droneBusy(best.id);
     }
 
     /**
@@ -415,7 +430,8 @@ public abstract class Scheduler implements Runnable{
         );
 
         System.out.println("Sent: " + message);
-
+        logger.droneAssigned(d.id, fire.getZone().getId());
+        logger.droneBusy(d.id);
         notifyAll();
 
     }
@@ -492,7 +508,6 @@ public abstract class Scheduler implements Runnable{
 
                     d.isFaulty = true;
                     d.state    = DroneInfo.DroneState.IDLE;
-
                     SwingUtilities.invokeLater(() -> {
                         if (zone > 0) {
                             gui.updateOrReplaceSquare(zone, "CLEAR_DRONE", null);
@@ -570,6 +585,9 @@ public abstract class Scheduler implements Runnable{
         };
         Thread schedulerThread = new Thread(scheduler);
         schedulerThread.start();
-
+        if (activeEventsByZone.isEmpty() && fireQueue.isEmpty()) {
+            logger.shutdown();
+            new Analyzer().run();
+        }
     }
 }
