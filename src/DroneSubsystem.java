@@ -26,6 +26,8 @@ public class DroneSubsystem implements Runnable{
     private static double LANDING_TIME = 4;//Landing time of the drone. Value is from iteration 0.
     private static double TIME_TO_OPEN_NOZZLE = 0.5;//Time it takes the drone to open the nozzle. Value is from iteration 0.
 
+    private double fuelLevel = 100.0; // Drone fuel levels
+
 
     private volatile boolean running = true;//To check if drone is running or not.
 
@@ -213,6 +215,7 @@ public class DroneSubsystem implements Runnable{
         System.out.println("Drone " + droneId + " reached origin. Refilling...");
         currentLoad = MAXLOAD;           // refill tank
 
+        fuelLevel = 100.0; // Refill the drone fuel 'at base'
         transitionState(Status.IDLE);    // now available
         notifyDroneReady();              // notify Scheduler
     }
@@ -293,7 +296,12 @@ public class DroneSubsystem implements Runnable{
     public void travelToZone() throws UnknownHostException {
         int zoneId = currentEvent.getZone().getId();
         System.out.println("[Drone " + droneId + "] Travelling to zone " + zoneId);
-        updateScheduler("DRONE_OUTBOUND|" + droneId + "|" + zoneId);
+
+        // Subtract from fuel level for drone when it travels
+        fuelLevel -= 5;
+        if (fuelLevel < 0) fuelLevel = 0; // Handle below 0 fuel level
+        updateScheduler("DRONE_OUTBOUND|" + droneId + "|" + zoneId + "|" + fuelLevel);
+
         try {
             Thread.sleep((int) (TAKE_OFF_TIME * 1000));
         } catch (InterruptedException ex) {
@@ -320,7 +328,13 @@ public class DroneSubsystem implements Runnable{
         int zoneId = currentEvent.getZone().getId();
         try {
             Thread.sleep((int)(calculateTime(currentEvent.getZone()) * 1000));
-            updateScheduler("DRONE_APPROACHING|" + droneId + "|" + zoneId);
+
+            // Decrease from drone fuel level when approaching zone
+            fuelLevel -= 10;
+            if (fuelLevel < 0) fuelLevel = 0;
+            // Update fuel below
+            updateScheduler("DRONE_APPROACHING|" + droneId + "|" + zoneId + "|" + fuelLevel);
+
             System.out.println("DroneSubsystem status: " + status.toString());
 
         } catch (InterruptedException ex) {
@@ -363,7 +377,7 @@ public class DroneSubsystem implements Runnable{
 
         try {
             Thread.sleep((int) (timeLoad * 1000));
-            updateScheduler("DRONE_DROPPING|" + droneId + "|" + zoneId);
+            updateScheduler("DRONE_DROPPING|" + droneId + "|" + zoneId + "|" + fuelLevel);
             System.out.println("[Drone " + droneId + "] Dropped " + waterNeeded + "L at zone " + zoneId
                     + ". Remaining: " + currentLoad + "L");
             Thread.sleep(500);
@@ -371,7 +385,7 @@ public class DroneSubsystem implements Runnable{
             Thread.currentThread().interrupt();
         }
 
-        updateScheduler("DRONE_CLEAR|" + droneId + "|" + zoneId);
+        updateScheduler("DRONE_CLEAR|" + droneId + "|" + zoneId + "|" + fuelLevel);
         FireIncidentEvent event = currentEvent;
         handleEvent(Event.DROP_COMPLETE);
         return event;
