@@ -339,6 +339,15 @@ public abstract class Scheduler implements Runnable{
         int droneId = Integer.parseInt(parts[1]);
         int zoneId = Integer.parseInt(parts[2]);
 
+        // Parse fuel from drone message
+        double fuel = 100.0; // default fuel if message missing
+        if (parts.length > 3) {
+            fuel = Double.parseDouble(parts[3]);
+        }
+
+        // To use below to update in the GUI
+        final int fuelDisplay = (int) fuel;
+
         DroneInfo info = drones.get(droneId);
         info.state = state;
         info.currentZone = zoneId;
@@ -350,7 +359,10 @@ public abstract class Scheduler implements Runnable{
         logger.droneBusy(droneId);
         // Update GUI to show drone at this zone
         SwingUtilities.invokeLater(() ->
-                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ")", color));
+                gui.updateOrReplaceSquare(zoneId, "D(" + droneId + ":" + fuelDisplay + "%)", color));
+        SwingUtilities.invokeLater(() -> {
+            gui.log("[" + LocalTime.now() + "] Drone " + droneId + " fuel level: " + fuelDisplay + "%");
+        });
     }
 
     /**
