@@ -163,6 +163,11 @@ Team Responsibilities – Iteration 4
 • Mohammad: Updated GUI
 • Leena: Implemented Fault handling
 
+Team Responsibilities – Iteration 5
+-----------------------------------
+•Zeina: Updated GUI , added drone states, 
+• Mohammad: Added logging
+• Leena: Implemented Fault handling, and fuel remaining
 
 Versioning
 ----------
