@@ -480,7 +480,7 @@ public class DroneSubsystem implements Runnable{
     public static void main(String[] args) throws UnknownHostException {
         Zone.parseZones("Zone_File.csv");
 
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<10; i++) {
             DroneSubsystem drone = new DroneSubsystem();
             Thread droneThread = new Thread(drone);
             droneThread.start();
