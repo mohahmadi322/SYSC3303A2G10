@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DroneTest {
 
-    // ----- Minimal Fake GUI -----
+    //  Minimal Fake GUI
     static class FakeGUI extends GUI {
         @Override
         public void log(String message) {
@@ -21,8 +21,9 @@ class DroneTest {
         }
     }
 
-    // ----- Tests -----
-
+    /**
+     * Testing water requirements for Low severity fires.
+     */
     @Test
     void testWaterRequiredLow() throws UnknownHostException {
 
@@ -41,9 +42,9 @@ class DroneTest {
 
         assertEquals(10, drone.waterRequired(event));
     }
-
-
-
+    /**
+     * Testing water requirements for Moderate severity fires.
+     */
     @Test
     void testWaterRequiredModerate() throws UnknownHostException {
 
@@ -64,7 +65,9 @@ class DroneTest {
         assertEquals(20, drone.waterRequired(event));
     }
 
-
+    /**
+     * Testing water requirements for High severity fires.
+     */
     @Test
     void testWaterRequiredHigh() throws UnknownHostException {
 
@@ -85,7 +88,9 @@ class DroneTest {
         assertEquals(30, drone.waterRequired(event));
     }
 
-
+    /**
+     * Testing travel time calculation based on distance.
+     */
     @Test
     void testCalculateTime() throws UnknownHostException {
 
@@ -98,7 +103,9 @@ class DroneTest {
         assertTrue(time > 0);
     }
 
-
+    /**
+     * Testing the drone's ability to receive and process an event.
+     */
     @Test
     void testEventAssignment() throws UnknownHostException {
 
@@ -120,16 +127,13 @@ class DroneTest {
         assertNotNull(event);
     }
 
-
+    /**
+     * Testing the drone subsystem shutdown logic.
+     */
     @Test
     void testStop() throws UnknownHostException {
         FakeGUI gui = new FakeGUI();
-        Scheduler scheduler = new Scheduler(gui) {
 
-            protected void initSockets() {
-
-            }
-        };
         //DroneSubsystem drone = new DroneSubsystem( 1);
         //Scheduler.DroneInfo drone = scheduler.new DroneInfo(1, 6001);
         DroneSubsystem drone = new DroneSubsystem();

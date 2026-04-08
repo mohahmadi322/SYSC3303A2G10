@@ -9,7 +9,7 @@ import java.time.LocalTime;
 public class FireIncidentEvent {
     public enum Status{//Event lifecycle
         FIRE_DETECTED,
-        DRONE_REQUESTED
+        DRONE_REQUEST
     }
     public enum Severity{//Severity of the event.
         High,
@@ -110,7 +110,9 @@ public class FireIncidentEvent {
                 severity + "|" + faultType;
     }
 
-    // Return drone fault type
+    /**
+     *     Return drone fault type
+      */
     public FaultType getFaultType() {
         return faultType;
     }

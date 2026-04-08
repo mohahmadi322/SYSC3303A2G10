@@ -11,8 +11,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class FireIncidentSubsystemTest {
 
     private FireIncidentSubsystem subsystem;
-    private Scheduler fakeScheduler;
 
+    /**
+     * Sets up the test environment by initializing zones.
+     */
     @BeforeEach
     void setup() {
         subsystem = new FireIncidentSubsystem();
@@ -22,7 +24,9 @@ class FireIncidentSubsystemTest {
         Zone.zonesHash.put(2, new Zone(2,11,0,20,10));
     }
 
-    // Helper to get the 'time' field from FireIncidentEvent via reflection
+    /**
+     * Helper to get the 'time' field from FireIncidentEvent via reflection.
+     */
     private LocalTime getTimeField(FireIncidentEvent event) {
         try {
             Field timeField = event.getClass().getDeclaredField("time"); // matches actual field
@@ -33,7 +37,9 @@ class FireIncidentSubsystemTest {
             return null;
         }
     }
-
+    /**
+     * Testing the parsing of a single incident event from CSV data.
+     */
     @Test
     void testReadIncidentEvent() {
         // Prepare zones
@@ -50,8 +56,9 @@ class FireIncidentSubsystemTest {
         assertEquals(LocalTime.of(12,30,0), getTimeField(event));
     }
 
-
-
+    /**
+     * Testing the parsing of multiple incident events.
+     */
     @Test
     void testMultipleIncidentEvents() {
         String[] row1 = {"08:15:30", "1", "FIRE_DETECTED", "High", "NONE"};
@@ -70,7 +77,9 @@ class FireIncidentSubsystemTest {
         assertEquals(LocalTime.of(9,45,0), getTimeField(events.get(1)));
         assertEquals(FireIncidentEvent.Severity.Moderate, events.get(1).getSeverity());
     }
-
+    /**
+     * Testing that extinguishing a fire correctly updates the zone status.
+     */
     @Test
     void testFirePutoutUpdatesZone() {
         Zone testZone = new Zone(1,0,0,10,10);

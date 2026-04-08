@@ -102,7 +102,7 @@ public class GUI extends JFrame {
 
     private void removeDroneFromAllZones(int droneId) {
         String droneLabel = "D(" + droneId + ")";
-        for (int z = 1; z <= 9; z++) {
+        for (int z = 1; z <= 5; z++) {
             List<JLabel> squares = zoneSquares.get(z);
             if (squares != null) {
                 squares.removeIf(sq -> droneLabel.equals(sq.getText()));
@@ -187,11 +187,11 @@ public class GUI extends JFrame {
     }
 
     private JPanel createMapPanel() {
-        JPanel panel = new JPanel(new GridLayout(3, 3, 10, 10));
+        JPanel panel = new JPanel(new GridLayout(2, 3, 10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("Zone Map"));
         panel.setBackground(Color.WHITE);
 
-        for (int i = 1; i <= 9; i++) {
+        for (int i = 1; i <= 5; i++) {
             JPanel cell = new JPanel(new BorderLayout());
             cell.setBorder(BorderFactory.createLineBorder(Color.BLACK));
             cell.setBackground(Color.WHITE);
@@ -210,6 +210,7 @@ public class GUI extends JFrame {
             zoneSquares.put(i, new ArrayList<>());
             panel.add(cell);
         }
+
 
         return panel;
     }

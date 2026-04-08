@@ -67,7 +67,7 @@ public class FireIncidentSubsystem implements Runnable {
             String line;
             bf.readLine();//Skip first line of csv file
             while((line = bf.readLine()) != null){
-                values = line.split(",");
+                values = line.split("\t");
                 if(readIncidentEvent(values) != null){events.add(readIncidentEvent(values));}//To ensure a null event is not added to the array
             }
         } catch (FileNotFoundException e) {
@@ -123,22 +123,29 @@ public class FireIncidentSubsystem implements Runnable {
     public void run() {
         incidents = parseIncidentFiles("Event_File.csv");
 
-        while (true) {
-            synchronized (this) {
-                while (incidents.isEmpty()) {
-                    try {
-                        wait(); // sleep until new event arrives
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
 
-                FireIncidentEvent e = incidents.remove(0);
-                try {
-                    sendFireIncident(e);
-                } catch (UnknownHostException ex) {
-                    throw new RuntimeException(ex);
-                }
+        if (incidents.isEmpty()) return;
+
+        LocalTime previousTime = incidents.get(0).getTime();
+
+        for (FireIncidentEvent event : incidents) {
+            try {
+                LocalTime currentTime = event.getTime();
+
+                // Calculate delay between events to simulate real time the fires
+                long delay = java.time.Duration.between(previousTime, currentTime).toMillis();
+
+                Thread.sleep(Math.abs(delay)/100);
+
+                sendFireIncident(event);
+
+
+                previousTime = currentTime;
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (UnknownHostException e) {
+                throw new RuntimeException(e);
             }
         }
     }

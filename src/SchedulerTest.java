@@ -93,24 +93,24 @@ public class SchedulerTest {
         assertFalse(scheduler.getFireQueue().contains(f2), "f2 should have been assigned");
     }
 
-//Water logic
-     @Test
-     void droneWithoutWaterSkipped() throws UnknownHostException {
-     scheduler.getDrones().get(1).agentRemaining = 0;
-     scheduler.getDrones().get(2).agentRemaining = 10;
+    //Water logic
+    @Test
+    void droneWithoutWaterSkipped() throws UnknownHostException {
+        scheduler.getDrones().get(1).agentRemaining = 0;
+        scheduler.getDrones().get(2).agentRemaining = 10;
 
-     scheduler.getFireQueue().add(new FireIncidentEvent(
-     LocalTime.of(2, 0),
-     new Zone(1, 0, 0, 5, 5),
-     FireIncidentEvent.Status.FIRE_DETECTED,
-     FireIncidentEvent.Severity.Low,
-     FireIncidentEvent.FaultType.NONE
-     ));
+        scheduler.getFireQueue().add(new FireIncidentEvent(
+                LocalTime.of(2, 0),
+                new Zone(1, 0, 0, 5, 5),
+                FireIncidentEvent.Status.FIRE_DETECTED,
+                FireIncidentEvent.Severity.Low,
+                FireIncidentEvent.FaultType.NONE
+        ));
 
-     scheduler.assignDrone();
+        scheduler.assignDrone();
 
-     assertEquals(Scheduler.DroneInfo.DroneState.OUTBOUND, scheduler.getDrones().get(2).state);
-     }
+        assertEquals(Scheduler.DroneInfo.DroneState.OUTBOUND, scheduler.getDrones().get(2).state);
+    }
 
 
     //Faulty drones are ignored
@@ -370,4 +370,3 @@ public class SchedulerTest {
         assertFalse(scheduler.getFireQueue().isEmpty());
     }
 }
-
